@@ -1,0 +1,15 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	// Keep the lint signal to likely bugs. The default-on `unicorn` plugin adds
+	// stylistic preferences (toSorted, endsWith, function scoping) that fight
+	// this codebase's declarative style, so it is disabled. `no-underscore-dangle`
+	// is off because `_event`-style unused params are intentional.
+	"plugins": [],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error"
+	},
+	"rules": {
+		"no-underscore-dangle": "off"
+	}
+}

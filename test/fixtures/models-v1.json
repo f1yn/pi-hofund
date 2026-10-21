@@ -1,0 +1,128 @@
+{
+	"data": [
+		{
+			"id": "openrouter/moonshotai/kimi-k3",
+			"canonical_slug": "openrouter/moonshotai/kimi-k3",
+			"name": "Kimi K3",
+			"normalized_name": "Kimi K3",
+			"created": 1700000000,
+			"context_length": 1048576,
+			"max_input_tokens": 1048576,
+			"max_output_tokens": 943718,
+			"architecture": {
+				"input_modalities": ["text", "image"],
+				"output_modalities": ["text"]
+			},
+			"pricing": {
+				"prompt": "0.000003",
+				"completion": "0.000015",
+				"input_cache_read": "0.0000003",
+				"input_cache_write": "0.00000375"
+			},
+			"top_provider": {
+				"context_length": 1048576,
+				"max_completion_tokens": 943718
+			},
+			"supported_parameters": [
+				"tools",
+				"reasoning",
+				"developer",
+				"stream_options",
+				"structured_outputs",
+				"max_completion_tokens"
+			],
+			"default_parameters": { "temperature": 1 },
+			"reasoning": {
+				"mandatory": false,
+				"default_enabled": true,
+				"supported_efforts": ["low", "medium", "high"],
+				"default_effort": "high"
+			},
+			"description": "Moonshot Kimi K3 (reasoning, vision) via OpenRouter."
+		},
+		{
+			"id": "opencode-go/deepseek-v4.1-flash",
+			"canonical_slug": "opencode-go/deepseek-v4.1-flash",
+			"name": "opencode-go/deepseek-v4.1-flash",
+			"normalized_name": "opencode-go/deepseek-v4.1-flash",
+			"created": 1700000001,
+			"context_length": 1048576,
+			"max_input_tokens": 1048576,
+			"max_output_tokens": 384000,
+			"architecture": {
+				"input_modalities": ["text"],
+				"output_modalities": ["text"]
+			},
+			"pricing": { "prompt": "0", "completion": "0" },
+			"top_provider": {
+				"context_length": 1048576,
+				"max_completion_tokens": 384000
+			},
+			"supported_parameters": ["tools", "reasoning", "max_completion_tokens"],
+			"reasoning": {
+				"mandatory": true,
+				"default_enabled": true,
+				"supported_efforts": ["low", "high", "max"]
+			},
+			"description": "DeepSeek V4.1 Flash with mandatory reasoning."
+		},
+		{
+			"id": "gemini/gemini-3.5-flash-lite",
+			"canonical_slug": "gemini/gemini-3.5-flash-lite",
+			"name": "Gemini 3.5 Flash Lite",
+			"normalized_name": "Gemini 3.5 Flash Lite",
+			"created": 1700000002,
+			"context_length": 1114112,
+			"max_input_tokens": 1048576,
+			"max_output_tokens": 65536,
+			"architecture": {
+				"input_modalities": ["text"],
+				"output_modalities": ["text"]
+			},
+			"pricing": {
+				"prompt": "0.0000003",
+				"completion": "0.0000025",
+				"input_cache_read": "0.00000003",
+				"input_cache_write": "0.0000003"
+			},
+			"top_provider": {
+				"context_length": 1114112,
+				"max_completion_tokens": 65536
+			},
+			"supported_parameters": ["tools", "max_completion_tokens", "response_format"],
+			"description": "Gemini 3.5 Flash Lite (non-reasoning)."
+		},
+		{
+			"id": "rutledge/rutledge-coder",
+			"canonical_slug": "rutledge/rutledge-coder",
+			"name": "rutledge/rutledge-coder",
+			"normalized_name": "rutledge/rutledge-coder",
+			"created": 1700000003,
+			"context_length": 128000,
+			"max_output_tokens": 8192,
+			"architecture": {
+				"input_modalities": ["text"],
+				"output_modalities": ["text"]
+			},
+			"pricing": { "prompt": 0.0000005, "completion": 0.000002 },
+			"top_provider": { "context_length": 128000, "max_completion_tokens": 8192 },
+			"supported_parameters": [],
+			"description": "Rutledge coder with numeric pricing and no cache prices."
+		},
+		{
+			"id": "openrouter/moonshotai/kimi-k3-dup",
+			"canonical_slug": "openrouter/moonshotai/kimi-k3",
+			"name": "Kimi K3 (duplicate spelling)",
+			"normalized_name": "Kimi K3 Duplicate",
+			"context_length": 1048576,
+			"max_output_tokens": 943718,
+			"architecture": {
+				"input_modalities": ["text"],
+				"output_modalities": ["text"]
+			},
+			"pricing": { "prompt": "9", "completion": "9" },
+			"supported_parameters": ["tools"],
+			"description": "Duplicate canonical_slug used to prove first-wins dedupe."
+		}
+	]
+}

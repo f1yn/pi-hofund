@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Pi working artifacts (session plans, task queues) stay local
+.pi/
+
+# Build, typecheck and test output
+dist/
+coverage/
+*.tsbuildinfo
+.vitest/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+auth.json
+settings.json
+
+# Logs and caches
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+.cache/
+tmp/
+
+# Editors and OS cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
