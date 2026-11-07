@@ -68,7 +68,7 @@ Pi will prompt you for:
 1. **Bifrost URL** — the mount URL of your gateway (e.g. `https://bifrost.example.com/openai/v1`).
 2. **Virtual Key** — your Bifrost virtual key.
 
-Credentials are saved securely in Pi's credential store (`~/.pi/agent/auth.json`). The virtual key is never written to `settings.json` and is never read from global environment variables.
+Credentials are saved securely in Pi's credential store (`~/.pi/agent/auth.json`). The login flow writes the resolved shape itself — `{ type: "api_key", key: "pi-hofund-keyless", env: { BIFROST_URL, BIFROST_VIRTUAL_KEY } }` — so the extension always finds the gateway URL and virtual key it needs, and re-running `/login bifrost` repairs any legacy bare-key entry. The virtual key is never written to `settings.json` and is never read from global environment variables.
 
 ### 3. Start using models
 
@@ -101,6 +101,13 @@ The `bifrost` provider registers all models exposed by your Virtual Key via Bifr
 - Concurrent refreshes are coalesced into a single network call.
 - Run `/bifrost:reload` at any time to bypass the cache and force an immediate refresh.
 
+### Per-Upstream Request Hooks
+
+Each `src/providers/<upstream>.ts` file is auto-discovered and may adjust the outgoing headers, the outgoing chat-completions body, and each incoming stream event for models whose id starts with that upstream:
+
+- The shipped `opencode-go` override attaches `x-bf-eh-x-opencode-session: <pi session id>`, which Bifrost forwards so an opencode session stays pinned to one backend. Nothing else is rewritten.
+- Hooks run in-process, perform no network I/O, and a throwing hook is reported and bypassed.
+
 ### Virtual MCP Tool Servers
 
 When `hofund.features.mcp` is enabled:
@@ -130,7 +137,7 @@ When `hofund.features.prompts` is enabled (requires a management key):
 
 | Command | Purpose |
 | --- | --- |
-| `/login bifrost` | Interactively prompt for gateway URL and Virtual Key, saving them to `auth.json`. |
+| `/login bifrost` | Interactively prompt for gateway URL and Virtual Key, then write the resolved credential (URL + key in `env`) to `auth.json`. |
 | `/bifrost:settings` | Open the interactive TUI settings screen to toggle MCP, skills, and prompts, or view current config. |
 | `/bifrost:reload` | Force an immediate catalog refresh and re-run active surface syncs. |
 

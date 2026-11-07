@@ -5,7 +5,9 @@ Spec-driven notes and C4 diagrams. `docs/ATLAS.md` is the authoritative groundin
 ## Spec assertions
 
 - [x] Provider id is `bifrost`; `defaultProvider` and `enabledModels` are unchanged in `settings.json`.
-- [x] The virtual key is read from `auth.json` (`src/credential.ts`), never from the environment or `settings.json`.
+- [x] The virtual key is read from `auth.json` (`src/config.ts`), never from the environment or `settings.json`.
+- [x] Provider login writes the resolved credential shape (gateway URL + virtual key in `env`) to `auth.json` itself, so a bare `{ type, key }` entry never leaves the provider unconfigured.
+- [x] Per-upstream `processHeaders` hooks run before the body hook; `opencode-go` attaches `x-bf-eh-x-opencode-session` from `meta.sessionId`.
 - [x] `mcp`, `skills`, and `prompts` are opt-in and default OFF; only `models` is always on.
 - [x] Model fields derive from the rich `/v1/models` catalog with no fallbacks or magnitude heuristics.
 - [x] `refreshModels` restores the stored catalog, honors a TTL, coalesces concurrent refreshes, and performs no network work in the request path.

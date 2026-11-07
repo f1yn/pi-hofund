@@ -25,6 +25,7 @@ import {
 	type HofundConfig,
 	bifrostHeaders,
 	normalizeBifrostUrl,
+	writeStoredCredential,
 } from "./config.ts";
 import {
 	type UpstreamOverride,
@@ -97,7 +98,10 @@ function wrapApi(
 		options: T | undefined,
 		model: Model<"openai-completions">,
 	): T {
-		return { ...options, fetch: wrapUpstreamFetch(options?.fetch, dispatch, model) } as T;
+		return {
+			...options,
+			fetch: wrapUpstreamFetch(options?.fetch, dispatch, model, options?.sessionId),
+		} as T;
 	}
 
 	function stream(
@@ -110,6 +114,7 @@ function wrapApi(
 			base.stream(model, context, withFetch(options, typed)),
 			dispatch,
 			typed,
+			options?.sessionId,
 		);
 	}
 
@@ -123,6 +128,7 @@ function wrapApi(
 			base.streamSimple(model, context, withFetch(options, typed)),
 			dispatch,
 			typed,
+			options?.sessionId,
 		);
 	}
 
@@ -137,6 +143,8 @@ export interface CreateBifrostProviderOptions {
 	fetch?: typeof fetch;
 	/** Per-upstream override hooks; see `src/providers/`. */
 	overrides?: ReadonlyMap<string, UpstreamOverride>;
+	/** Agent directory holding `auth.json`; defaults to Pi's agent directory. */
+	credentialDir?: string;
 }
 
 /**
@@ -237,11 +245,23 @@ export function createBifrostProvider(
 						await interaction.prompt({ type: "secret", message: "Virtual key (required)" }),
 					);
 					if (!virtualKey) throw new Error("pi-hofund: a virtual key is required");
-					return {
+					const credential: ApiKeyCredential = {
 						type: "api_key",
 						key: PLACEHOLDER_API_KEY,
 						env: { BIFROST_URL: url, BIFROST_VIRTUAL_KEY: virtualKey },
-					} satisfies ApiKeyCredential;
+					};
+					// Make the stored shape authoritative. Pi's generic api-key path writes
+					// `{ type, key }` with no `env`, which carries no virtual key and would
+					// leave this extension unconfigured after the next restart.
+					try {
+						await writeStoredCredential(credential, { dir: options.credentialDir });
+					} catch (error) {
+						interaction.notify({
+							type: "info",
+							message: `pi-hofund could not write auth.json: ${message(error)}`,
+						});
+					}
+					return credential;
 				},
 				async resolve({ credential }) {
 					const effective = credentialConfig(credential, config);

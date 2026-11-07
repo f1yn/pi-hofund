@@ -4,11 +4,15 @@ The extension is deliberately small: one module per concern, plus one escape hat
 
 ## Add an upstream traffic override
 
-Drop a file at `src/providers/<upstream>.ts`, where `<upstream>` is the first path segment of the model id (for example `opencode-go` or `openrouter`). Export either or both hooks:
+Drop a file at `src/providers/<upstream>.ts`, where `<upstream>` is the first path segment of the model id (for example `opencode-go` or `openrouter`). Export any of the hooks:
 
 ```ts
 import type { AssistantMessageEvent } from "@earendil-works/pi-ai";
 import type { OutgoingBody, UpstreamMeta } from "./registry.ts";
+
+export async function processHeaders(headers: Headers, meta: UpstreamMeta): Promise<void> {
+	// mutate `headers` in place; `meta.sessionId` is the current Pi session id
+}
 
 export async function processOutgoing(body: OutgoingBody, meta: UpstreamMeta): Promise<void> {
 	// mutate `body` in place, or return a replacement
@@ -26,9 +30,10 @@ Rules:
 
 - Files are auto-discovered; only modules exporting a hook become overrides. Subdirectories (including `shared/`) and `*.d.ts` are skipped. Put helpers in `shared/` and import them explicitly.
 - Hooks must not perform network I/O. A thrown hook is caught, reported as a warning, and the original input is used.
-- `processOutgoing` sees the parsed chat-completions request body; `processIncoming` sees each streamed `AssistantMessageEvent`.
+- `processHeaders` mutates the outgoing request headers and runs before `processOutgoing`, which sees the parsed chat-completions request body; `processIncoming` sees each streamed `AssistantMessageEvent`.
+- `meta.sessionId` is set when the adapter supplies a Pi session id; do not require it.
 
-`src/providers/opencode-go.ts` is a no-op template — copy it.
+`src/providers/opencode-go.ts` is a working example: it attaches `x-bf-eh-x-opencode-session` so Bifrost pins one opencode-go session to one backend. Copy it for a new upstream.
 
 ## Add a Bifrost surface
 

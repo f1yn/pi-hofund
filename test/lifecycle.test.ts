@@ -7,6 +7,7 @@ type StreamContext = Parameters<ProviderStreams["stream"]>[1];
 import { describe, expect, it } from "vitest";
 import { createHofundConfig } from "../src/config.ts";
 import { createBifrostProvider } from "../src/provider.ts";
+import { OPENCODE_SESSION_HEADER, processHeaders } from "../src/providers/opencode-go.ts";
 import type { UpstreamOverride } from "../src/providers/registry.ts";
 
 const fixturePath = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "models-v1.json");
@@ -228,5 +229,41 @@ describe("refreshModels lifecycle", function () {
 
 		expect(streamError, `stream error: ${String(streamError)}`).toBeUndefined();
 		expect(JSON.parse(captured ?? "{}").messages).toEqual(["hooked"]);
+	});
+
+	it("threads the Pi session id into the opencode-go affinity header", async function () {
+		const overrides = new Map<string, UpstreamOverride>([["opencode-go", { processHeaders }]]);
+
+		let captured: Headers | undefined;
+		const fetchImpl: typeof fetch = async function (input, init) {
+			if (String(input).endsWith("/models")) return catalogResponse();
+			captured = new Headers(init?.headers);
+			return new Response("nope", { status: 500 });
+		};
+
+		const provider = createBifrostProvider(makeConfig(), { fetch: fetchImpl, overrides });
+		await provider.refreshModels(makeContext().context);
+		const model = provider.getModels().find((m) => m.id.startsWith("opencode-go/")) as
+			| Model<"openai-completions">
+			| undefined;
+		expect(model).toBeDefined();
+
+		const context = { messages: [{ role: "user", content: "hi" }] } as unknown as StreamContext;
+		let streamError: unknown;
+		try {
+			const stream = provider.stream(model as Model<"openai-completions">, context, {
+				apiKey: "test",
+				fetch: fetchImpl,
+				sessionId: "pi-session-9",
+			});
+			for await (const _event of stream) {
+				// Drain; the mock returns 500, which the adapter surfaces below.
+			}
+		} catch (error) {
+			streamError = error;
+		}
+
+		expect(streamError, `stream error: ${String(streamError)}`).toBeUndefined();
+		expect(captured?.get(OPENCODE_SESSION_HEADER)).toBe("pi-session-9");
 	});
 });

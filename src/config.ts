@@ -274,6 +274,44 @@ export function readStoredCredential(dir: string = agentDir()): ApiKeyCredential
 }
 
 /**
+ * Persist an API-key credential to Pi's credential store.
+ *
+ * @param credential - The credential the login flow produced.
+ * @param options - Optional agent directory and provider id overrides.
+ * @returns The credential that was written.
+ * @remarks
+ * Pi does persist whatever a provider's `login` returns, but a bare
+ * `{ type: "api_key", key }` entry — written by the generic api-key path, by an
+ * older build, or by a half-finished login — carries no `env`, so no virtual key
+ * can be resolved from it and the provider is never registered. Writing the
+ * credential here makes the on-disk shape authoritative and idempotent. Other
+ * providers' entries are preserved, the write is atomic (temp + rename), and the
+ * resulting file stays `0600` because Pi exposes no credential-write API to
+ * extensions.
+ */
+export async function writeStoredCredential(
+	credential: ApiKeyCredential,
+	options: { dir?: string; providerId?: string } = {},
+): Promise<ApiKeyCredential> {
+	const dir = options.dir ?? agentDir();
+	const providerId = options.providerId ?? "bifrost";
+	const path = join(dir, "auth.json");
+	let current: Record<string, unknown> = {};
+	try {
+		current = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+	} catch {
+		// Missing or malformed store: start a fresh one.
+		current = {};
+	}
+	current[providerId] = credential;
+	await mkdir(dir, { recursive: true });
+	const temporary = `${path}.tmp`;
+	await writeFile(temporary, `${JSON.stringify(current, null, 2)}\n`, { mode: 0o600 });
+	await rename(temporary, path);
+	return credential;
+}
+
+/**
  * Read the `hofund` block from the user settings file.
  *
  * @param options - Optional agent directory override.

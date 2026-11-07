@@ -17,7 +17,7 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 7. **Follow the Pi abstract.** Models via `pi.registerProvider`; MCP via `pi.registerMcpServer`; skills/prompts via file discovery. No bespoke runtime where a Pi hook exists.
 8. **Zero runtime dependencies.** Keep-alive for `node:zlib`-based ZIP decode; never add an archive dependency and never shell out to `unzip`.
 9. **`docs/ATLAS.md` is non-negotiable** and must be updated with any change to surfaces, invariants, or forbidden patterns.
-10. **Upstream overrides are opt-in and file-discovered.** `src/providers/<upstream>.ts` may export async `processOutgoing` and/or `processIncoming`. Upstream is the first path segment of `model.id`. Hooks never do network I/O; a thrown hook is caught, notified, and bypassed.
+10. **Upstream overrides are opt-in and file-discovered.** `src/providers/<upstream>.ts` may export async `processHeaders`, `processOutgoing`, and/or `processIncoming`. Upstream is the first path segment of `model.id`. `processHeaders` mutates the outgoing request headers in place and runs before the body hook; `processOutgoing` sees the parsed chat-completions body; `processIncoming` sees each streamed event. Every hook receives `meta.sessionId` (the Pi session id) when the adapter supplies one. Hooks never do network I/O; a thrown hook is caught, notified, and bypassed.
 11. **Auto-discovery boundary.** Direct `src/providers/*.ts`/`*.js` children are discovered, but only files exporting a hook become overrides; subdirectories (including `shared/**`) and `*.d.ts` never are.
 12. **Code style is owned by `docs/code.md`.** Declaration style (`function` over arrow for named exports), formatting, and comments are defined there, not here.
 13. **Load-time safety.** The extension factory must not call Pi action methods (`getSettings`, `sendMessage`, `setModel`, `getActiveTools`, …); only `registerFlag`, `registerProvider`, `registerMcpServer`, `on`, and `getFlag` are load-safe. Config is read from disk (`auth.json`, `settings.json`); runtime-dependent work runs in `session_start`.
@@ -25,11 +25,12 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 15. **Managed assets carry the single extra front-matter field `managed-by: pi-hofund`.** Existing assets without the marker are user-defined: never overwritten, never removed, tracked as `preserved` in the manifest.
 16. **Zip path prefix (skills only).** `hofund.zipPathPrefix` restricts skills sync to assets under that path inside the upstream zip; prompts sync is JSON-based and unaffected.
 17. **Comment style.** `/** ... */` for exported declarations, `//` for internals and inline notes — specified in `docs/code.md`.
+18. **Login persists the credential itself.** `provider.auth.apiKey.login` writes the resolved shape — `{ type: "api_key", key: "pi-hofund-keyless", env: { BIFROST_URL, BIFROST_VIRTUAL_KEY } }` — to `auth.json` through `writeStoredCredential` instead of trusting the caller to persist it. A bare `{ type: "api_key", key }` entry carries no virtual key and is never treated as configured.
 
 ## Module Map
 
 - `index.ts` — extension entry: flags, credential read, controller wiring, `session_start`/`session_shutdown`. Owns lifecycle; never fetches.
-- `src/config.ts` — settings/env/argv/credential resolution, feature gating, headers, load-safe `auth.json`/`settings.json` reads and writes, and endpoint derivation. Never touches the network or a Pi action method at load.
+- `src/config.ts` — settings/env/argv/credential resolution, feature gating, headers, load-safe `auth.json`/`settings.json` reads and atomic writes (`writeStoredCredential`, `writeHofundSettings`), and endpoint derivation. Never touches the network or a Pi action method at load.
 - `src/command.ts` — the interactive `/bifrost:settings` and `/bifrost:reload` commands. Run only at command time.
 - `src/catalog.ts` — rich-catalog fetch and pure entry→model mapping. No fallbacks or heuristics.
 - `src/provider.ts` — `bifrost` provider, auth resolution, wrapped API, and the refresh lifecycle. Never networks outside `refreshModels`.
@@ -37,8 +38,8 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 - `src/sync.ts` — the opt-in skills/prompts syncers (business logic). Skills write only as flat directories under `skills/`; prompts only under `prompts/bifrost/`.
 - `src/shared/zip.ts` — dependency-free ZIP reader over `node:zlib`. Cross-domain and pure; knows nothing about Bifrost.
 - `src/shared/frontmatter.ts` — front-matter detection and managed-marker injection. Cross-domain and pure.
-- `src/providers/registry.ts` — the override hook contract plus discovery and traffic dispatch. Never performs I/O inside a hook.
-- `src/providers/opencode-go.ts` — documented no-op override template.
+- `src/providers/registry.ts` — the override hook contract (headers, body, stream events) plus discovery and traffic dispatch. Never performs I/O inside a hook.
+- `src/providers/opencode-go.ts` — the `opencode-go` override: attaches the `x-bf-eh-x-opencode-session` affinity header from the Pi session id. Doubles as the template for new upstreams.
 
 ## Commands
 
@@ -51,7 +52,7 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 
 1. **Load:** `index.ts` reads settings → `createHofundConfig` (URL from credential/argv/env/settings; VK from `auth.json`) → `loadUpstreamOverrides` → `createBifrostAbstract` → `registerProvider`. Filesystem only.
 2. **`session_start`:** flush queued notices; run `syncModels` (provider `refreshModels`) and the gated `syncMcp` / `syncSkills` / `syncPrompts` in parallel; each failure is caught and notified independently.
-3. **Request time:** the wrapped `api` runs `processOutgoing` on the JSON body and `processIncoming` on each stream event. No fetches beyond the model call.
+3. **Request time:** the wrapped `api` runs `processHeaders` on the outgoing headers, then `processOutgoing` on the JSON body, then `processIncoming` on each stream event; `meta.sessionId` carries the Pi session id. No fetches beyond the model call.
 4. **`session_shutdown`:** `shutdown()` unregisters hofund-registered MCP servers; idempotent.
 
 ## Credential Matrix
@@ -70,8 +71,9 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 - **Add a `compat` flag** → `src/catalog.ts` `toProviderModel` + a `test/catalog.test.ts` fixture assertion.
 - **Change refresh cadence** → `modelTtlMinutes` in `hofund` settings (mapped to `modelTtlMs`).
 - **Add a Bifrost surface** → a new `src/` module + a feature gate in `src/config.ts` + a fixture test.
-- **Add an upstream override** → `src/providers/<upstream>.ts` with optional `processOutgoing`/`processIncoming`, plus a `test/providers.test.ts` case.
-- **Change credential handling** → `src/credential.ts` and `src/config.ts`; update this matrix.
+- **Add an upstream override** → `src/providers/<upstream>.ts` with optional `processHeaders`/`processOutgoing`/`processIncoming`, plus a `test/providers.test.ts` case.
+- **Add a request header for one upstream** → `processHeaders` in that upstream's file (see `opencode-go.ts`); never fork the client.
+- **Change credential handling** → `src/config.ts` (`createHofundConfig`, `readStoredCredential`, `writeStoredCredential`); update this matrix.
 
 ## Forbidden Patterns
 
@@ -85,6 +87,8 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 - network I/O inside an upstream override hook;
 - style violations covered by `docs/code.md` (formatting, declaration style, comments);
 - auto-importing `src/providers/shared/**`;
+- trusting a bare `{ type, key }` credential (no `env`) as configured;
+- reimplementing an upstream requirement in a client fork when an override header satisfies it;
 - writing outside `skills/` or `prompts/bifrost/`;
 - deleting files a previous run did not write;
 - disabling a feature deleting data.

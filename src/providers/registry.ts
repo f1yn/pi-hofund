@@ -26,6 +26,8 @@ export interface UpstreamMeta {
 	/** First path segment of the model id, e.g. "opencode-go" or "openrouter". */
 	readonly upstream: string;
 	readonly model: Model<"openai-completions">;
+	/** Pi session id for this request, when the caller supplies one. */
+	readonly sessionId?: string;
 }
 
 /** Parsed chat-completions request body. */
@@ -49,8 +51,21 @@ export type ProcessIncoming = (
 	meta: UpstreamMeta,
 ) => void | AssistantMessageEvent | Promise<void | AssistantMessageEvent>;
 
+/**
+ * Header hook: mutate the outgoing request headers in place.
+ *
+ * @param headers - Request headers; mutate them directly (`set`/`delete`).
+ * @param meta - Upstream identity, including the Pi session id when available.
+ * @returns A promise that settles once the headers are final.
+ * @remarks
+ * Runs once per request, before the body hook. The return value is ignored.
+ */
+export type ProcessHeaders = (headers: Headers, meta: UpstreamMeta) => void | Promise<void>;
+
 /** Optional hooks for one upstream. */
 export interface UpstreamOverride {
+	/** Mutate the outgoing request headers. */
+	processHeaders?: ProcessHeaders;
 	/** Mutate or replace the outgoing request body. */
 	processOutgoing?: ProcessOutgoing;
 	/** Mutate or replace each incoming stream event. */
@@ -59,12 +74,23 @@ export interface UpstreamOverride {
 
 /** Runtime dispatch used by the provider's wrapped API. */
 export interface UpstreamDispatch {
+	/** Run the header hook for the model's upstream. */
+	runHeaders(
+		model: Model<"openai-completions">,
+		headers: Headers,
+		sessionId?: string,
+	): Promise<Headers>;
 	/** Run the outgoing hook for the model's upstream. */
-	runOutgoing(model: Model<"openai-completions">, body: OutgoingBody): Promise<OutgoingBody>;
+	runOutgoing(
+		model: Model<"openai-completions">,
+		body: OutgoingBody,
+		sessionId?: string,
+	): Promise<OutgoingBody>;
 	/** Run the incoming hook for the model's upstream. */
 	runIncoming(
 		model: Model<"openai-completions">,
 		event: AssistantMessageEvent,
+		sessionId?: string,
 	): Promise<AssistantMessageEvent>;
 }
 
@@ -72,8 +98,9 @@ export interface UpstreamDispatch {
 // Registry and dispatch
 // ---------------------------------------------------------------------------
 
-// A provider module may export either or both hooks.
+// A provider module may export any of the hooks.
 interface OverrideModule {
+	processHeaders?: UpstreamOverride["processHeaders"];
 	processOutgoing?: UpstreamOverride["processOutgoing"];
 	processIncoming?: UpstreamOverride["processIncoming"];
 }
@@ -98,7 +125,7 @@ function loadModule(url: string): Promise<unknown> {
  * @returns A map of upstream name to its optional hooks.
  * @remarks
  * The scan is non-recursive and skips `*.d.ts`; only modules exporting a hook
- * are included.
+ * are included. Hooks are `processHeaders`, `processOutgoing`, `processIncoming`.
  */
 export async function loadUpstreamOverrides(
 	dir: string | URL = new URL(".", import.meta.url),
@@ -115,13 +142,18 @@ export async function loadUpstreamOverrides(
 			pathToFileURL(join(directory, entry.name)).href,
 		)) as OverrideModule;
 		const override: UpstreamOverride = {};
+		if (typeof module.processHeaders === "function") {
+			override.processHeaders = module.processHeaders;
+		}
 		if (typeof module.processOutgoing === "function") {
 			override.processOutgoing = module.processOutgoing;
 		}
 		if (typeof module.processIncoming === "function") {
 			override.processIncoming = module.processIncoming;
 		}
-		if (!override.processOutgoing && !override.processIncoming) continue;
+		if (!override.processHeaders && !override.processOutgoing && !override.processIncoming) {
+			continue;
+		}
 
 		overrides.set(entry.name.replace(/\.(?:ts|js)$/u, ""), override);
 	}
@@ -145,15 +177,35 @@ export function createUpstreamDispatch(
 		return model.id.split("/")[0] ?? model.provider;
 	}
 
+	async function runHeaders(
+		model: Model<"openai-completions">,
+		headers: Headers,
+		sessionId?: string,
+	): Promise<Headers> {
+		const upstream = upstreamOf(model);
+		const hook = overrides.get(upstream)?.processHeaders;
+		if (!hook) return headers;
+		try {
+			await hook(headers, { upstream, model, sessionId });
+		} catch (error) {
+			notify?.(
+				`Bifrost upstream override "${upstream}" processHeaders failed: ${message(error)}`,
+				"warning",
+			);
+		}
+		return headers;
+	}
+
 	async function runOutgoing(
 		model: Model<"openai-completions">,
 		body: OutgoingBody,
+		sessionId?: string,
 	): Promise<OutgoingBody> {
 		const upstream = upstreamOf(model);
 		const hook = overrides.get(upstream)?.processOutgoing;
 		if (!hook) return body;
 		try {
-			return (await hook(body, { upstream, model })) ?? body;
+			return (await hook(body, { upstream, model, sessionId })) ?? body;
 		} catch (error) {
 			notify?.(
 				`Bifrost upstream override "${upstream}" processOutgoing failed: ${message(error)}`,
@@ -166,12 +218,13 @@ export function createUpstreamDispatch(
 	async function runIncoming(
 		model: Model<"openai-completions">,
 		event: AssistantMessageEvent,
+		sessionId?: string,
 	): Promise<AssistantMessageEvent> {
 		const upstream = upstreamOf(model);
 		const hook = overrides.get(upstream)?.processIncoming;
 		if (!hook) return event;
 		try {
-			return (await hook(event, { upstream, model })) ?? event;
+			return (await hook(event, { upstream, model, sessionId })) ?? event;
 		} catch (error) {
 			notify?.(
 				`Bifrost upstream override "${upstream}" processIncoming failed: ${message(error)}`,
@@ -181,7 +234,7 @@ export function createUpstreamDispatch(
 		}
 	}
 
-	return { runOutgoing, runIncoming };
+	return { runHeaders, runOutgoing, runIncoming };
 }
 
 /**
@@ -190,12 +243,14 @@ export function createUpstreamDispatch(
  * @param baseFetch - Fetch to wrap, or `undefined` for the global fetch.
  * @param dispatch - Dispatcher selecting the upstream hook.
  * @param model - Model whose upstream hook applies.
- * @returns A fetch that transforms JSON bodies and forwards everything else.
+ * @param sessionId - Pi session id handed to the hooks, when known.
+ * @returns A fetch that transforms headers and JSON bodies and forwards everything else.
  */
 export function wrapUpstreamFetch(
 	baseFetch: typeof fetch | undefined,
 	dispatch: UpstreamDispatch,
 	model: Model<"openai-completions">,
+	sessionId?: string,
 ): typeof fetch {
 	const inner = baseFetch ?? globalThis.fetch;
 	return async function (input, init) {
@@ -204,13 +259,16 @@ export function wrapUpstreamFetch(
 			try {
 				const parsed = JSON.parse(body) as unknown;
 				if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-					body = JSON.stringify(await dispatch.runOutgoing(model, parsed as OutgoingBody));
+					body = JSON.stringify(
+						await dispatch.runOutgoing(model, parsed as OutgoingBody, sessionId),
+					);
 				}
 			} catch {
 				// Non-JSON body, or a hook returned something unserializable: forward as-is.
 			}
 		}
-		return inner(input, { ...init, body });
+		const headers = await dispatch.runHeaders(model, new Headers(init?.headers), sessionId);
+		return inner(input, { ...init, body, headers });
 	};
 }
 
@@ -220,6 +278,7 @@ export function wrapUpstreamFetch(
  * @param baseStream - Stream to wrap.
  * @param dispatch - Dispatcher selecting the upstream hook.
  * @param model - Model whose upstream hook applies.
+ * @param sessionId - Pi session id handed to the hooks, when known.
  * @returns A stream forwarding transformed events.
  * @remarks
  * The base stream's terminal `done`/`error` event still settles the wrapper.
@@ -228,13 +287,14 @@ export function wrapIncomingStream(
 	baseStream: AssistantMessageEventStream,
 	dispatch: UpstreamDispatch,
 	model: Model<"openai-completions">,
+	sessionId?: string,
 ): AssistantMessageEventStream {
 	const out = createAssistantMessageEventStream();
 
 	void (async function pump(): Promise<void> {
 		try {
 			for await (const event of baseStream) {
-				out.push(await dispatch.runIncoming(model, event));
+				out.push(await dispatch.runIncoming(model, event, sessionId));
 			}
 		} catch {
 			// The base stream is authoritative; fall through and settle consumers.
