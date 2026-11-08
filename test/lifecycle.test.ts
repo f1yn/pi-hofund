@@ -53,6 +53,17 @@ function catalogResponse(): Response {
 	return new Response(fixtureBody, { status: 200 });
 }
 
+// Count only the aggregate catalog request; provider-scoped echoes stay empty.
+function aggregateFetch(count: () => void): typeof fetch {
+	return async function (input) {
+		if (String(input).includes("?provider=")) {
+			return new Response(JSON.stringify({ data: [] }), { status: 200 });
+		}
+		count();
+		return catalogResponse();
+	};
+}
+
 /** Seed a provider with the fixture catalog by running one refresh. */
 async function seededProvider(
 	fetchImpl: typeof fetch = async function () {
@@ -69,27 +80,25 @@ describe("refreshModels lifecycle", function () {
 	it("fetches once when stale and publishes the persisted catalog", async function () {
 		let fetches = 0;
 		const provider = createBifrostProvider(makeConfig(), {
-			fetch: async function () {
+			fetch: aggregateFetch(function () {
 				fetches += 1;
-				return catalogResponse();
-			},
+			}),
 		});
 		const { context, publications } = makeContext();
 
 		await provider.refreshModels(context);
 
 		expect(fetches).toBe(1);
-		expect(provider.getModels()).toHaveLength(4);
+		expect(provider.getModels()).toHaveLength(6);
 		expect(publications.some((publication) => publication.persist !== undefined)).toBe(true);
 	});
 
 	it("does not fetch again while the TTL is fresh, restoring the stored catalog", async function () {
 		let fetches = 0;
 		const provider = createBifrostProvider(makeConfig(), {
-			fetch: async function () {
+			fetch: aggregateFetch(function () {
 				fetches += 1;
-				return catalogResponse();
-			},
+			}),
 		});
 		await provider.refreshModels(makeContext().context);
 		expect(fetches).toBe(1);
@@ -114,10 +123,9 @@ describe("refreshModels lifecycle", function () {
 
 		let fetches = 0;
 		const provider = createBifrostProvider(makeConfig(), {
-			fetch: async function () {
+			fetch: aggregateFetch(function () {
 				fetches += 1;
-				return catalogResponse();
-			},
+			}),
 		});
 		const { context } = makeContext({
 			allowNetwork: false,
@@ -126,7 +134,7 @@ describe("refreshModels lifecycle", function () {
 		await provider.refreshModels(context);
 
 		expect(fetches).toBe(0);
-		expect(provider.getModels()).toHaveLength(4);
+		expect(provider.getModels()).toHaveLength(6);
 	});
 
 	it("retains the previous catalog and warns when a fetch fails", async function () {
@@ -149,14 +157,17 @@ describe("refreshModels lifecycle", function () {
 			makeContext({ stored: stored as unknown as RefreshModelsContext["stored"] }).context,
 		);
 
-		expect(provider.getModels()).toHaveLength(4);
+		expect(provider.getModels()).toHaveLength(6);
 		expect(notices.join(" ")).toContain("boom");
 	});
 
-	it("coalesces concurrent refreshes into one network call", async function () {
+	it("coalesces concurrent refreshes into one aggregate call", async function () {
 		let fetches = 0;
 		const provider = createBifrostProvider(makeConfig(), {
-			fetch: async function () {
+			fetch: async function (input) {
+				if (String(input).includes("?provider=")) {
+					return new Response(JSON.stringify({ data: [] }), { status: 200 });
+				}
 				fetches += 1;
 				await new Promise((resolve) => setTimeout(resolve, 5));
 				return catalogResponse();
@@ -174,10 +185,9 @@ describe("refreshModels lifecycle", function () {
 	it("re-syncs on a later refresh once the TTL expires", async function () {
 		let fetches = 0;
 		const provider = createBifrostProvider(makeConfig(0.0001), {
-			fetch: async function () {
+			fetch: aggregateFetch(function () {
 				fetches += 1;
-				return catalogResponse();
-			},
+			}),
 		});
 
 		await provider.refreshModels(makeContext().context);
@@ -201,7 +211,7 @@ describe("refreshModels lifecycle", function () {
 
 		let captured: string | undefined;
 		const fetchImpl: typeof fetch = async function (input, init) {
-			if (String(input).endsWith("/models")) return catalogResponse();
+			if (String(input).includes("/models")) return catalogResponse();
 			captured = String(init?.body);
 			return new Response("nope", { status: 500 });
 		};
@@ -236,7 +246,7 @@ describe("refreshModels lifecycle", function () {
 
 		let captured: Headers | undefined;
 		const fetchImpl: typeof fetch = async function (input, init) {
-			if (String(input).endsWith("/models")) return catalogResponse();
+			if (String(input).includes("/models")) return catalogResponse();
 			captured = new Headers(init?.headers);
 			return new Response("nope", { status: 500 });
 		};

@@ -2,7 +2,7 @@
 	"data": [
 		{
 			"id": "openrouter/moonshotai/kimi-k3",
-			"canonical_slug": "openrouter/moonshotai/kimi-k3",
+			"canonical_slug": "moonshotai/kimi-k3-20260715",
 			"name": "Kimi K3",
 			"normalized_name": "Kimi K3",
 			"created": 1700000000,
@@ -67,6 +67,16 @@
 			"description": "DeepSeek V4.1 Flash with mandatory reasoning."
 		},
 		{
+			"id": "opencode-go/glm-5.3-flash",
+			"created": 1700000005,
+			"owned_by": "opencode"
+		},
+		{
+			"id": "opencode-go/kimi-k3",
+			"created": 1700000006,
+			"owned_by": "opencode"
+		},
+		{
 			"id": "gemini/gemini-3.5-flash-lite",
 			"canonical_slug": "gemini/gemini-3.5-flash-lite",
 			"name": "Gemini 3.5 Flash Lite",
@@ -94,24 +104,22 @@
 		},
 		{
 			"id": "rutledge/rutledge-coder",
-			"canonical_slug": "rutledge/rutledge-coder",
 			"name": "rutledge/rutledge-coder",
 			"normalized_name": "rutledge/rutledge-coder",
-			"created": 1700000003,
-			"context_length": 128000,
-			"max_output_tokens": 8192,
+			"alias": "nightmedia/Qwen3-Coder-Next-mxfp4-mlx",
+			"created": 0,
+			"owned_by": "maestro",
 			"architecture": {
 				"input_modalities": ["text"],
 				"output_modalities": ["text"]
 			},
 			"pricing": { "prompt": 0.0000005, "completion": 0.000002 },
-			"top_provider": { "context_length": 128000, "max_completion_tokens": 8192 },
 			"supported_parameters": [],
-			"description": "Rutledge coder with numeric pricing and no cache prices."
+			"description": "Custom coder with numeric pricing, no limits, and no upstream echo."
 		},
 		{
-			"id": "openrouter/moonshotai/kimi-k3-dup",
-			"canonical_slug": "openrouter/moonshotai/kimi-k3",
+			"id": "openrouter/moonshotai/kimi-k3",
+			"canonical_slug": "moonshotai/kimi-k3-20260715",
 			"name": "Kimi K3 (duplicate spelling)",
 			"normalized_name": "Kimi K3 Duplicate",
 			"context_length": 1048576,
@@ -122,7 +130,7 @@
 			},
 			"pricing": { "prompt": "9", "completion": "9" },
 			"supported_parameters": ["tools"],
-			"description": "Duplicate canonical_slug used to prove first-wins dedupe."
+			"description": "Repeat of a routable id used to prove first-wins dedupe."
 		}
 	]
 }

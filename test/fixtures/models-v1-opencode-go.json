@@ -1,0 +1,120 @@
+{
+	"data": [
+		{
+			"id": "opencode-go/deepseek-v4.1-flash",
+			"created": 1794100890,
+			"owned_by": "opencode"
+		},
+		{
+			"id": "opencode-go/glm-5.3-flash",
+			"created": 1794100890,
+			"owned_by": "opencode"
+		}
+	],
+	"extra_fields": {
+		"request_type": "list_models",
+		"routing_info": { "provider": "opencode-go", "requested_provider": "opencode-go" },
+		"raw_response": [
+			{
+				"object": "list",
+				"data": [
+					{
+						"id": "deepseek-v4.1-flash",
+						"object": "model",
+						"owned_by": "opencode",
+						"name": "DeepSeek V4.1 Flash",
+						"canonical_id": "deepseek/deepseek-v4.1-flash",
+						"type": "chat",
+						"modalities": {
+							"input": ["text", "image/jpeg", "image/png"],
+							"output": ["text"]
+						},
+						"capabilities": {
+							"tools": { "supported": true },
+							"reasoning": { "supported": true, "effort": ["low", "high", "max"] },
+							"structured_output": true,
+							"temperature": true
+						},
+						"limit": { "context": 1000000, "output": 384000 },
+						"cost": {
+							"text": {
+								"input": { "price": 0.15, "cache": { "read": 0.003 } },
+								"output": { "price": 0.6 }
+							}
+						}
+					},
+					{
+						"id": "glm-5.3-flash",
+						"object": "model",
+						"owned_by": "opencode",
+						"name": "GLM-5.3-Flash",
+						"canonical_id": "zhipuai/glm-5.3-flash",
+						"type": "chat",
+						"modalities": {
+							"input": ["text", "video/mp4"],
+							"output": ["text"]
+						},
+						"capabilities": {
+							"tools": { "supported": true },
+							"reasoning": { "supported": true, "effort": ["low", "high", "max"] },
+							"structured_output": true,
+							"temperature": true
+						},
+						"limit": { "context": 1000000, "output": 131072 },
+						"cost": {
+							"text": {
+								"input": { "price": 0.15, "cache": { "read": 0.03 } },
+								"output": { "price": 0.5 }
+							}
+						}
+					},
+					{
+						"id": "kimi-k3",
+						"object": "model",
+						"owned_by": "opencode",
+						"name": "Kimi K3",
+						"canonical_id": "moonshotai/kimi-k3",
+						"type": "chat",
+						"modalities": {
+							"input": ["text", "image/jpeg", "image/heic", "video/mp4"],
+							"output": ["text"]
+						},
+						"capabilities": {
+							"tools": { "supported": true },
+							"reasoning": { "supported": true, "effort": ["max"] },
+							"structured_output": true
+						},
+						"limit": { "context": 1048576, "output": 131072 },
+						"cost": {
+							"text": {
+								"input": { "price": 3, "cache": { "read": 0.3, "write": 3 } },
+								"output": { "price": 15 }
+							}
+						}
+					},
+					{
+						"id": "gpt-5.6-luna",
+						"object": "model",
+						"owned_by": "opencode",
+						"name": "GPT-5.6 Luna",
+						"canonical_id": "openai/gpt-5.6-luna",
+						"type": "chat",
+						"capabilities": {
+							"tools": { "supported": true },
+							"reasoning": { "supported": true, "effort": ["none", "low", "high"] },
+							"structured_output": true
+						},
+						"limit": { "context": 1050000, "input": 922000, "output": 128000 },
+						"cost": {
+							"text": {
+								"input": { "price": 0.2, "cache": { "read": 0.02, "write": 0.25 } },
+								"output": { "price": 1.2 }
+							}
+						}
+					}
+				]
+			}
+		]
+	},
+	"key_statuses": [{ "status": "success", "provider": "opencode-go" }]
+}

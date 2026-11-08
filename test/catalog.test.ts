@@ -13,6 +13,13 @@ import { createHofundConfig } from "../src/config.ts";
 const fixturePath = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "models-v1.json");
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as { data: BifrostRichModel[] };
 
+const scopedPath = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"fixtures",
+	"models-v1-opencode-go.json",
+);
+const scopedFixture = JSON.parse(readFileSync(scopedPath, "utf8")) as Record<string, unknown>;
+
 /** First-wins map so the contract tests read like the runtime catalog. */
 function dedupe(
 	models: Array<BifrostProviderModel | undefined>,
@@ -115,8 +122,22 @@ describe("toProviderModel", function () {
 		expect(cheap?.cost.input).toBeCloseTo(3, 6);
 	});
 
-	it("dedupes by canonical_slug, keeping the first spelling", function () {
-		expect(byId.size).toBe(4);
+	it("prefers Bifrost's routable id over the canonical slug", function () {
+		const model = toProviderModel({
+			id: "openrouter/moonshotai/kimi-k3",
+			canonical_slug: "moonshotai/kimi-k3-20260715",
+			name: "MoonshotAI: Kimi K3",
+		});
+		expect(model?.id).toBe("openrouter/moonshotai/kimi-k3");
+	});
+
+	it("falls back to the canonical slug when Bifrost reports no id", function () {
+		const model = toProviderModel({ canonical_slug: "moonshotai/kimi-k3-20260715" });
+		expect(model?.id).toBe("moonshotai/kimi-k3-20260715");
+	});
+
+	it("dedupes by routable id, keeping the first entry", function () {
+		expect(byId.size).toBe(6);
 		expect(byId.get("openrouter/moonshotai/kimi-k3")?.name).toBe("Kimi K3");
 	});
 
@@ -124,6 +145,13 @@ describe("toProviderModel", function () {
 		const model = toProviderModel({ canonical_slug: "x/bare", name: "Bare" });
 		expect(model?.contextWindow).toBe(128000);
 		expect(model?.maxTokens).toBe(8192);
+	});
+
+	it("maps nothing the bare entry does not report", function () {
+		// The pure mapper cannot complete a bare entry; only fetchCatalog can.
+		const model = byId.get("opencode-go/glm-5.3-flash");
+		expect(model?.contextWindow).toBe(128000);
+		expect(model?.reasoning).toBe(false);
 	});
 });
 
@@ -134,19 +162,121 @@ describe("fetchCatalog", function () {
 		argv: [],
 	});
 
+	// Route aggregate, scoped, and failing requests so call order is observable.
+	function routedFetch(errorProvider?: string): typeof fetch & { calls: string[] } {
+		const calls: string[] = [];
+		const mock = async function (input: string | URL | Request): Promise<Response> {
+			const url = String(input);
+			calls.push(url);
+			if (url.endsWith("?provider=opencode-go")) {
+				return new Response(JSON.stringify(scopedFixture), { status: 200 });
+			}
+			if (url.endsWith("?provider=rutledge")) {
+				if (errorProvider === "rutledge") return new Response("boom", { status: 500 });
+				return new Response(JSON.stringify({ data: [] }), { status: 200 });
+			}
+			return new Response(JSON.stringify(fixture), { status: 200 });
+		};
+		return Object.assign(mock as typeof fetch, { calls });
+	}
+
 	it("requests the rich catalog with vk headers and dedupes by id", async function () {
-		let requestedUrl: string | undefined;
 		let requestedHeaders: HeadersInit | undefined;
 		const mockFetch: typeof fetch = async function (input, init) {
-			requestedUrl = String(input);
-			requestedHeaders = init?.headers;
+			if (String(input) === "https://host/v1/models") requestedHeaders = init?.headers;
 			return new Response(JSON.stringify(fixture), { status: 200 });
 		};
 
 		const models = await fetchCatalog(config, { fetch: mockFetch });
-		expect(requestedUrl).toBe("https://host/v1/models");
-		expect(models).toHaveLength(4);
+		expect(models).toHaveLength(6);
 		expect(new Headers(requestedHeaders).get("x-bf-vk")).toBe("vk");
+	});
+
+	it("asks only the limit-less providers for their upstream echo", async function () {
+		const mockFetch = routedFetch();
+		await fetchCatalog(config, { fetch: mockFetch });
+		expect(mockFetch.calls).toEqual([
+			"https://host/v1/models",
+			"https://host/v1/models?provider=opencode-go",
+			"https://host/v1/models?provider=rutledge",
+		]);
+	});
+
+	it("completes a bare entry from the provider-scoped upstream echo", async function () {
+		const models = await fetchCatalog(config, { fetch: routedFetch() });
+		const byModelId = new Map(models.map((model) => [model.id, model]));
+		const glm = byModelId.get("opencode-go/glm-5.3-flash");
+
+		expect(glm?.name).toBe("GLM-5.3-Flash");
+		expect(glm?.contextWindow).toBe(1_000_000);
+		expect(glm?.maxTokens).toBe(131_072);
+		expect(glm?.cost.input).toBeCloseTo(0.15, 6);
+		expect(glm?.cost.output).toBeCloseTo(0.5, 6);
+		expect(glm?.cost.cacheRead).toBeCloseTo(0.03, 6);
+		expect(glm?.cost.cacheWrite).toBeCloseTo(0.15, 6);
+		expect(glm?.reasoning).toBe(true);
+		expect(glm?.thinkingLevelMap).toEqual({
+			off: "none",
+			minimal: null,
+			low: "low",
+			medium: null,
+			high: "high",
+			xhigh: null,
+			max: "max",
+		});
+		// Video modalities are dropped: Pi's model shape is text/image only.
+		expect(glm?.input).toEqual(["text"]);
+		expect(glm?.compat.supportsStrictMode).toBe(true);
+		expect(glm?.compat.supportsUsageInStreaming).toBe(false);
+		expect(glm?.compat.maxTokensField).toBe("max_tokens");
+	});
+
+	it("carries image modalities through from the upstream echo", async function () {
+		const models = await fetchCatalog(config, { fetch: routedFetch() });
+		const kimi = models.find((model) => model.id === "opencode-go/kimi-k3");
+		expect(kimi?.name).toBe("Kimi K3");
+		expect(kimi?.contextWindow).toBe(1_048_576);
+		expect(kimi?.maxTokens).toBe(131_072);
+		expect(kimi?.input).toEqual(["text", "image"]);
+		expect(kimi?.cost.input).toBeCloseTo(3, 6);
+		expect(kimi?.cost.cacheWrite).toBeCloseTo(3, 6);
+		expect(kimi?.reasoning).toBe(true);
+		// Only "max" is advertised, so every other level is disabled.
+		expect(kimi?.thinkingLevelMap).toEqual({
+			off: "none",
+			minimal: null,
+			low: null,
+			medium: null,
+			high: null,
+			xhigh: null,
+			max: "max",
+		});
+	});
+
+	it("leaves an entry that declares its own limits untouched", async function () {
+		const models = await fetchCatalog(config, { fetch: routedFetch() });
+		const deepseek = models.find((model) => model.id === "opencode-go/deepseek-v4.1-flash");
+		// The echo advertises structured output, but the aggregate entry did not.
+		expect(deepseek?.compat.supportsStrictMode).toBe(false);
+	});
+
+	it("does not add upstream models the key cannot use", async function () {
+		const models = await fetchCatalog(config, { fetch: routedFetch() });
+		expect(models.some((model) => model.id.includes("gpt-5.6-luna"))).toBe(false);
+	});
+
+	it("keeps the conservative fallback when a provider has no echo", async function () {
+		const models = await fetchCatalog(config, { fetch: routedFetch() });
+		const rutledge = models.find((model) => model.id === "rutledge/rutledge-coder");
+		expect(rutledge?.contextWindow).toBe(128000);
+		expect(rutledge?.maxTokens).toBe(8192);
+	});
+
+	it("keeps the catalog when a provider-scoped request fails", async function () {
+		const models = await fetchCatalog(config, { fetch: routedFetch("rutledge") });
+		const rutledge = models.find((model) => model.id === "rutledge/rutledge-coder");
+		expect(rutledge?.contextWindow).toBe(128000);
+		expect(models).toHaveLength(6);
 	});
 
 	it("throws a descriptive error on a 401 with an error body", async function () {

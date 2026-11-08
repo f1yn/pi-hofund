@@ -10,7 +10,7 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 
 1. **Provider id stays `bifrost`.** `settings.json` has `defaultProvider: bifrost` and `enabledModels` entries of the form `bifrost/<id>`.
 2. **Factory pattern over classes.** The top level is `createBifrostAbstract(config, pi, overrides, notify)`, a closed-over contract object. No classes, no `this`, no inheritance — error values are tagged `Error`s, not subclasses.
-3. **No heuristics.** `compat`, `reasoning`, `thinkingLevelMap`, limits, and pricing come from the rich `/v1/models` entry alone. No magnitude guesses, no fallback catalogs, no cross-spelling inference.
+3. **No heuristics.** `compat`, `reasoning`, `thinkingLevelMap`, limits, and pricing come from Bifrost alone: the rich `/v1/models` entry, completed — only where that entry is a bare stub — from the upstream echo on the provider-scoped listing. No magnitude guesses, no fallback catalogs, no cross-spelling inference.
 4. **No network in the factory or request path.** Fetching happens in `refreshModels` (TTL-checked, coalesced) and in `session_start` syncs.
 5. **Refresh lifecycle.** No one-shot latch: restore stored → TTL check → conditional network fetch; re-sync on `session_start`.
 6. **Filesystem containment.** Skills write only as flat skill directories under `~/.pi/agent/skills/`; prompts only under `~/.pi/agent/prompts/bifrost/`; writes are atomic (temp + rename); orphan cleanup is manifest-driven and never touches unmanaged files.
@@ -26,13 +26,15 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 16. **Zip path prefix (skills only).** `hofund.zipPathPrefix` restricts skills sync to assets under that path inside the upstream zip; prompts sync is JSON-based and unaffected.
 17. **Comment style.** `/** ... */` for exported declarations, `//` for internals and inline notes — specified in `docs/code.md`.
 18. **Login persists the credential itself.** `provider.auth.apiKey.login` writes the resolved shape — `{ type: "api_key", key: "pi-hofund-keyless", env: { BIFROST_URL, BIFROST_VIRTUAL_KEY } }` — to `auth.json` through `writeStoredCredential` instead of trusting the caller to persist it. A bare `{ type: "api_key", key }` entry carries no virtual key and is never treated as configured.
+19. **Bare catalog entries are completed, never invented.** An aggregate entry that reports no context window is treated as a stub and completed from `extra_fields.raw_response` of one `GET <rich>/v1/models?provider=<provider>` request per affected provider. Aggregate values always win, an entry that declares its own window is left untouched, upstream models absent from the aggregate are never added (they may be outside the key's policy), and a failed or empty echo is non-fatal. Upstream `cost` is dollars per million tokens and is converted once into the rich catalog's per-token unit.
+20. **Model id is Bifrost's routable id.** `toProviderModel` uses `entry.id` first — the provider-prefixed name the gateway actually routes — falling back to `canonical_slug`, `normalized_name`, then `name` only when no id is reported. `canonical_slug` alone is not routable and would collide with `bifrost/<id>` entries in `settings.json`.
 
 ## Module Map
 
 - `index.ts` — extension entry: flags, credential read, controller wiring, `session_start`/`session_shutdown`. Owns lifecycle; never fetches.
 - `src/config.ts` — settings/env/argv/credential resolution, feature gating, headers, load-safe `auth.json`/`settings.json` reads and atomic writes (`writeStoredCredential`, `writeHofundSettings`), and endpoint derivation. Never touches the network or a Pi action method at load.
 - `src/command.ts` — the interactive `/bifrost:settings` and `/bifrost:reload` commands. Run only at command time.
-- `src/catalog.ts` — rich-catalog fetch and pure entry→model mapping. No fallbacks or heuristics.
+- `src/catalog.ts` — rich-catalog fetch, provider-scoped echo completion, and pure entry→model mapping. No fallbacks or heuristics.
 - `src/provider.ts` — `bifrost` provider, auth resolution, wrapped API, and the refresh lifecycle. Never networks outside `refreshModels`.
 - `src/mcp.ts` — VK-scoped MCP registration (per-slug, whole-key fallback). Never writes disk.
 - `src/sync.ts` — the opt-in skills/prompts syncers (business logic). Skills write only as flat directories under `skills/`; prompts only under `prompts/bifrost/`.
@@ -57,18 +59,20 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 
 ## Credential Matrix
 
-| Surface                 | Endpoint                       | Credential                   |
-| ----------------------- | ------------------------------ | ---------------------------- |
-| Models (rich catalog)   | `GET <rich>/v1/models`         | VK from `auth.json`          |
-| Models (inference)      | `<openai>/v1/chat/completions` | VK from `auth.json`          |
-| MCP gateway             | `/mcp`, `/mcp/<slug>`          | VK from `auth.json`          |
-| Virtual MCP enumeration | `GET /api/mcp/virtual-mcps`    | VK + optional management key |
-| Skills                  | `GET /api/skills/serve/...`    | none (public)                |
-| Prompts                 | `GET /api/prompt-repo/prompts` | management key               |
+| Surface                 | Endpoint                            | Credential                   |
+| ----------------------- | ----------------------------------- | ---------------------------- |
+| Models (rich catalog)   | `GET <rich>/v1/models`              | VK from `auth.json`          |
+| Models (upstream echo)  | `GET <rich>/v1/models?provider=<p>` | VK from `auth.json`          |
+| Models (inference)      | `<openai>/v1/chat/completions`      | VK from `auth.json`          |
+| MCP gateway             | `/mcp`, `/mcp/<slug>`               | VK from `auth.json`          |
+| Virtual MCP enumeration | `GET /api/mcp/virtual-mcps`         | VK + optional management key |
+| Skills                  | `GET /api/skills/serve/...`         | none (public)                |
+| Prompts                 | `GET /api/prompt-repo/prompts`      | management key               |
 
 ## Where To Change What
 
 - **Add a `compat` flag** → `src/catalog.ts` `toProviderModel` + a `test/catalog.test.ts` fixture assertion.
+- **Change how a bare entry is completed** → `completeFromUpstream` in `src/catalog.ts` + `test/catalog.test.ts` with `test/fixtures/models-v1-opencode-go.json` (regenerate both fixtures with `node scripts/fetch-fixture.ts`, `HOFUND_FIXTURE_PROVIDER` picks the provider).
 - **Change refresh cadence** → `modelTtlMinutes` in `hofund` settings (mapped to `modelTtlMs`).
 - **Add a Bifrost surface** → a new `src/` module + a feature gate in `src/config.ts` + a fixture test.
 - **Add an upstream override** → `src/providers/<upstream>.ts` with optional `processHeaders`/`processOutgoing`/`processIncoming`, plus a `test/providers.test.ts` case.
@@ -81,6 +85,9 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 - network I/O in the factory or the request path;
 - `models.dev` fallback catalog;
 - magnitude-based price heuristics;
+- completing a bare aggregate entry from anything but Bifrost's own provider-scoped echo (a client-side table, another provider's entry, or a magnitude guess);
+- adding a model the aggregate listing did not expose (the key may be barred from it);
+- rewriting an entry that declares its own limits;
 - cross-spelling reasoning inheritance;
 - hardcoded `supportsDeveloperRole: true` (Bifrost always uses the system role);
 - adding an archive/ZIP dependency or shelling out to `unzip`;
@@ -97,3 +104,4 @@ Grounding document for anyone (human or model) modifying this extension. Read th
 
 - **Bifrost prompt version → markdown template:** one-way. Bifrost stores ordered message arrays plus `model_params`; Pi templates are one markdown file. The projection renders messages as role sections and keeps `model_params` as metadata only. Verified against Bifrost's OpenAPI `management/prompts.yaml`, not live traffic.
 - **ZIP64:** rejected with a typed `Zip64UnsupportedError`. Skill bundles are small, so this is acceptable; extend `src/shared/zip.ts` if that changes.
+- **Upstream echo → rich entry:** prices are converted from per-million to per-token; peak-hour `cost.multipliers` and context-threshold `cost.overrides` have no Pi equivalent and are ignored; the echo reports no `mandatory` flag, so reasoning `off` stays `"none"`; audio/video modalities are dropped because Pi's model shape is text/image only; `maxTokensField` is not derivable from the echo and stays `max_tokens`.

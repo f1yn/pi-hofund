@@ -32,7 +32,7 @@ Pointing Pi at an OpenAI-compatible proxy URL only provides raw chat completions
 
 ### Core Design Principles
 
-- **Derived, never guessed:** Every model attribute (reasoning capabilities, context windows, pricing, thinking levels) is derived directly from Bifrost's rich model catalog. There are no fallback catalogs, magnitude guesses, or arbitrary `compat` flags.
+- **Derived, never guessed:** Every model attribute (reasoning capabilities, context windows, pricing, thinking levels) is derived directly from Bifrost's own catalog. There are no fallback catalogs, magnitude guesses, or arbitrary `compat` flags. A provider whose aggregate entry is a bare stub is completed from the upstream metadata Bifrost echoes on its provider-scoped listing; a value Bifrost reports nowhere keeps a documented conservative default.
 - **Scoped & governed:** All inference and tool calls pass through your Bifrost Virtual Key (VK). Prompts require an optional management key; skills sync from public bundles. Pi only accesses what your key is permitted to see.
 - **Safe & non-destructive:** Synced assets carry a `managed-by: pi-hofund` front-matter marker. Existing local skills and custom prompts without this marker are never overwritten or removed.
 - **Zero runtime dependencies:** Built entirely on Node.js built-ins (`node:zlib` for archive handling) and Pi extension APIs.
@@ -96,9 +96,10 @@ Toggle desired features with `Space`, save with `Ctrl+S`, or reload the catalog 
 
 The `bifrost` provider registers all models exposed by your Virtual Key via Bifrost's `/v1/models` catalog:
 
-- Context limits, max tokens, pricing, and reasoning flags are populated directly from gateway metadata.
+- Context limits, max tokens, pricing, and reasoning flags are populated directly from gateway metadata. Model ids are Bifrost's own routable, provider-prefixed ids.
+- Providers that omit limits, prices, or capabilities from the aggregate listing (for example `opencode-go`) are completed from the upstream metadata Bifrost echoes on `GET /v1/models?provider=<provider>`; an entry that already declares its own limits is never rewritten.
 - Catalog updates are cached with a configurable TTL (default 6 hours) and refreshed automatically on session start.
-- Concurrent refreshes are coalesced into a single network call.
+- Concurrent refreshes are coalesced into a single aggregate catalog request, plus one provider-scoped echo per provider that reports no limits.
 - Run `/bifrost:reload` at any time to bypass the cache and force an immediate refresh.
 
 ### Per-Upstream Request Hooks
