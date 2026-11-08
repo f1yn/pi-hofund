@@ -20,6 +20,7 @@ import {
 	openAICompletionsApi,
 } from "@earendil-works/pi-ai/compat";
 import { type BifrostProviderModel, fetchCatalog } from "./catalog.ts";
+import { BIFROST_PROVIDER_ID } from "./models.ts";
 import {
 	type DiscoveryNotifier,
 	type HofundConfig,
@@ -221,7 +222,7 @@ export function createBifrostProvider(
 	}
 
 	const base = createProvider({
-		id: "bifrost",
+		id: BIFROST_PROVIDER_ID,
 		name: "Bifrost AI Gateway",
 		baseUrl: config.url,
 		api,

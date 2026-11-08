@@ -14,6 +14,7 @@ import {
 	readStoredCredential,
 	writeHofundSettings,
 } from "./config.ts";
+import { refreshBifrostModels } from "./models.ts";
 
 const COMMAND_NAME = "bifrost:settings";
 
@@ -251,8 +252,6 @@ export function registerSettingsCommand(pi: ExtensionAPI): void {
 
 /** The subset of the controller the reload command drives. */
 export interface SyncController {
-	/** Refresh the model catalog; `force` bypasses the freshness TTL. */
-	syncModels(force?: boolean): Promise<void>;
 	/** Register/re-register the MCP surface; resolves to the server count. */
 	syncMcp(): Promise<number>;
 	/** Materialize skills when the feature is enabled. */
@@ -294,7 +293,7 @@ export function registerReloadCommand(
 				};
 			}
 			await Promise.all([
-				controller.syncModels(true).catch(report("model")),
+				refreshBifrostModels(ctx.modelRegistry, true).catch(report("model")),
 				controller.syncMcp().catch(report("MCP")),
 				controller.syncSkills().catch(report("skills")),
 				controller.syncPrompts().catch(report("prompts")),

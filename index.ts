@@ -15,6 +15,7 @@ import {
 } from "./src/config.ts";
 import { createMcpRegistrar } from "./src/mcp.ts";
 import { registerReloadCommand, registerSettingsCommand } from "./src/command.ts";
+import { refreshBifrostModels } from "./src/models.ts";
 import { createBifrostProvider } from "./src/provider.ts";
 import { type UpstreamOverride, loadUpstreamOverrides } from "./src/providers/registry.ts";
 import { createPromptsSyncer, createSkillsSyncer } from "./src/sync.ts";
@@ -23,8 +24,6 @@ import { createPromptsSyncer, createSkillsSyncer } from "./src/sync.ts";
 export interface HofundController {
 	/** Register the `bifrost` provider with Pi. */
 	registerProvider(): void;
-	/** Refresh the model catalog for this session; `force` bypasses the TTL. */
-	syncModels(force?: boolean): Promise<void>;
 	/** Register the MCP surface; resolves to the number of servers added. */
 	syncMcp(): Promise<number>;
 	/** Materialize skills when the feature is enabled. */
@@ -62,19 +61,6 @@ export function createBifrostAbstract(
 	const prompts = createPromptsSyncer(config, { notify });
 	let shutDown = false;
 
-	async function syncModels(force = false): Promise<void> {
-		// The provider owns TTL/coalescing; this only nudges it for the new session.
-		await provider.refreshModels({
-			allowNetwork: true,
-			signal: AbortSignal.timeout(15_000),
-			publish: async function () {
-				return true;
-			},
-			stored: undefined,
-			force,
-		});
-	}
-
 	async function syncMcp(): Promise<number> {
 		if (!config.features.mcp) return 0;
 		// Wrap so ExtensionAPI methods keep their `this` binding.
@@ -103,7 +89,6 @@ export function createBifrostAbstract(
 		registerProvider: function () {
 			pi.registerProvider(provider);
 		},
-		syncModels,
 		syncMcp,
 		syncSkills,
 		syncPrompts,
@@ -178,7 +163,7 @@ export default async function hofund(pi: ExtensionAPI): Promise<void> {
 		}
 		// Syncs are independent: one failure must not abort the others.
 		await Promise.all([
-			controller.syncModels().catch(function (error) {
+			refreshBifrostModels(ctx.modelRegistry, false).catch(function (error) {
 				ctx.ui.notify(`Bifrost model sync failed: ${describe(error)}`, "error");
 			}),
 			controller.syncMcp().catch(function (error) {

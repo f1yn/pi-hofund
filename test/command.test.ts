@@ -17,8 +17,13 @@ function captureRegistrations(): { pi: ExtensionAPI; commands: CapturedCommand[]
 	return { pi, commands };
 }
 
-function makeContext(): { ctx: ExtensionCommandContext; notices: string[] } {
+function makeContext(): {
+	ctx: ExtensionCommandContext;
+	notices: string[];
+	refreshes: Array<{ providers: readonly string[]; force: boolean | undefined }>;
+} {
 	const notices: string[] = [];
+	const refreshes: Array<{ providers: readonly string[]; force: boolean | undefined }> = [];
 	const ctx = {
 		mode: "tui",
 		ui: {
@@ -26,17 +31,20 @@ function makeContext(): { ctx: ExtensionCommandContext; notices: string[] } {
 				notices.push(message);
 			},
 		},
+		modelRegistry: {
+			refresh: async function (options: { providers?: readonly string[]; force?: boolean }) {
+				refreshes.push({ providers: options.providers ?? [], force: options.force });
+				return { aborted: false, errors: new Map() };
+			},
+		},
 	} as unknown as ExtensionCommandContext;
-	return { ctx, notices };
+	return { ctx, notices, refreshes };
 }
 
 describe("registerReloadCommand", function () {
 	it("runs every sync with a forced model refresh", async function () {
 		const calls: string[] = [];
 		const controller: SyncController = {
-			syncModels: async function (force) {
-				calls.push(`models:${String(force)}`);
-			},
 			syncMcp: async function () {
 				calls.push("mcp");
 				return 0;
@@ -52,12 +60,13 @@ describe("registerReloadCommand", function () {
 		registerReloadCommand(pi, function () {
 			return controller;
 		});
-		const { ctx, notices } = makeContext();
+		const { ctx, notices, refreshes } = makeContext();
 
 		expect(commands[0]?.name).toBe("bifrost:reload");
 		await commands[0]?.handler("", ctx);
 
-		expect(calls.sort()).toEqual(["mcp", "models:true", "prompts", "skills"]);
+		expect(calls.sort()).toEqual(["mcp", "prompts", "skills"]);
+		expect(refreshes).toEqual([{ providers: ["bifrost"], force: true }]);
 		expect(notices.join(" ")).toContain("complete");
 	});
 
