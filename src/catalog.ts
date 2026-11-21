@@ -195,13 +195,15 @@ function hasReasoning(entry: BifrostRichModel, parameters: string[]): boolean {
 }
 
 // Map reported efforts onto Pi's thinking levels, or undefined when unreported.
-// "off" maps to the provider's "none" variant, not the literal "off".
+// "off" is selectable only when the upstream accepts a "none" effort: Pi sends a
+// mapped string as the request's effort, so "none" on a model whose efforts are
+// ["low", "high", "max"] would be rejected upstream.
 function thinkingLevelMapFor(entry: BifrostRichModel): ThinkingLevelMap | undefined {
 	const efforts = entry.reasoning?.supported_efforts?.map((effort) => effort.toLowerCase());
 	if (!efforts?.length) return undefined;
 	const has = (level: string) => efforts.includes(level);
 	return {
-		off: entry.reasoning?.mandatory === true ? null : "none",
+		off: entry.reasoning?.mandatory === true || !has("none") ? null : "none",
 		minimal: has("minimal") ? "minimal" : null,
 		low: has("low") ? "low" : null,
 		medium: has("medium") ? "medium" : null,
@@ -281,15 +283,29 @@ function hasDeclaredContextWindow(entry: BifrostRichModel): boolean {
 	return declaredContextWindow(entry) !== undefined;
 }
 
-// Providers whose aggregate entries leave the context window unreported. A
-// missing window means Bifrost listed a bare stub, so the provider's upstream
-// echo is worth one extra request.
-function providersWithoutLimits(entries: readonly BifrostRichModel[]): string[] {
+// Whether the entry reports none of the capability metadata this extension
+// consumes: reasoning flags, accepted parameters, or input modalities. A Bifrost
+// version that projects limits but no capabilities lands here while still
+// reporting a window, so a missing window alone cannot mean "bare stub".
+function lacksCapabilities(entry: BifrostRichModel): boolean {
+	const parameters = entry.supported_parameters;
+	return (
+		entry.reasoning === undefined &&
+		(parameters === undefined || parameters.length === 0) &&
+		entry.architecture?.input_modalities === undefined
+	);
+}
+
+// Providers with at least one aggregate entry that omits something consumed
+// here. Their upstream echo is the only Bifrost surface carrying it, so it is
+// worth exactly one extra request per such provider.
+function providersNeedingEcho(entries: readonly BifrostRichModel[]): string[] {
 	const providers = new Set<string>();
 	for (const entry of entries) {
 		const id = nonEmpty(entry.id);
 		const provider = id ? providerOf(id) : undefined;
-		if (!provider || hasDeclaredContextWindow(entry)) continue;
+		if (!provider) continue;
+		if (hasDeclaredContextWindow(entry) && !lacksCapabilities(entry)) continue;
 		providers.add(provider);
 	}
 	return [...providers];
@@ -375,6 +391,16 @@ function mergeParameters(
 	return merged.size > 0 ? [...merged] : undefined;
 }
 
+// Entry prices without explicitly-undefined values, so a present but empty key
+// never clobbers a price the echo reported.
+function definedPricing(pricing: BifrostRichModel["pricing"]): BifrostRichModel["pricing"] {
+	if (pricing === undefined) return undefined;
+	const defined = Object.entries(pricing).filter(([, value]) => value !== undefined);
+	return defined.length > 0
+		? (Object.fromEntries(defined) as BifrostRichModel["pricing"])
+		: undefined;
+}
+
 // Complete a bare aggregate entry from its upstream echo. Values the aggregate
 // already reports always win; nothing is invented where the upstream is silent.
 function completeFromUpstream(
@@ -394,7 +420,7 @@ function completeFromUpstream(
 			declaredModalities?.length || modalities === undefined
 				? entry.architecture
 				: { ...entry.architecture, input_modalities: modalities },
-		pricing: { ...upstreamPricing(upstream), ...entry.pricing },
+		pricing: { ...upstreamPricing(upstream), ...definedPricing(entry.pricing) },
 		supported_parameters: mergeParameters(entry.supported_parameters, upstream),
 		reasoning: entry.reasoning ?? upstreamReasoning(upstream),
 	};
@@ -445,9 +471,10 @@ export interface FetchCatalogOptions {
  * @returns The deduplicated list of provider models; the first entry per id wins.
  * @throws When the response is not OK or `data` is not an array.
  * @remarks
- * Providers whose aggregate entry carries no context window are completed from
- * the upstream echo of one extra provider-scoped request. A failed or empty
- * echo is not an error: the aggregate entry is used unchanged.
+ * Providers whose aggregate entry omits limits or capability metadata are
+ * completed from the upstream echo of one extra provider-scoped request each.
+ * Completion fills only omitted fields, so aggregate values always win. A
+ * failed or empty echo is not an error: the entry is used unchanged.
  */
 export async function fetchCatalog(
 	config: HofundConfig,
@@ -481,23 +508,29 @@ export async function fetchCatalog(
 		(entry): entry is BifrostRichModel => entry !== null && typeof entry === "object",
 	);
 
-	// Providers that report no limits list a bare aggregate entry, so pull their
-	// upstream echo once and key it by the routable id the aggregate uses.
+	// Providers with a bare aggregate entry get their upstream echo pulled once
+	// each, concurrently, and keyed by the routable id the aggregate uses.
 	const echo = new Map<string, BifrostUpstreamModel>();
-	for (const provider of providersWithoutLimits(entries)) {
-		for (const upstream of await fetchUpstreamEcho(config, provider, fetchImpl, options.signal)) {
+	const echoes = await Promise.allSettled(
+		providersNeedingEcho(entries).map(async (provider) => ({
+			provider,
+			models: await fetchUpstreamEcho(config, provider, fetchImpl, options.signal),
+		})),
+	);
+	for (const result of echoes) {
+		if (result.status !== "fulfilled") continue;
+		for (const upstream of result.value.models) {
 			const id = nonEmpty(upstream.id);
-			if (id) echo.set(`${provider}/${id}`, upstream);
+			if (id) echo.set(`${result.value.provider}/${id}`, upstream);
 		}
 	}
 
 	const models = entries
 		.map((entry) => {
 			const id = nonEmpty(entry.id);
-			// Only bare entries are completed: an entry that declares its own window
-			// already describes the model and is left exactly as Bifrost listed it.
-			const upstream =
-				id === undefined || hasDeclaredContextWindow(entry) ? undefined : echo.get(id);
+			// Completion only fills fields the aggregate omits, so an entry that
+			// already declares a value keeps it verbatim.
+			const upstream = id === undefined ? undefined : echo.get(id);
 			return toProviderModel(upstream ? completeFromUpstream(entry, upstream) : entry);
 		})
 		.filter((model): model is BifrostProviderModel => model !== undefined);

@@ -12,6 +12,10 @@ import type { UpstreamOverride } from "../src/providers/registry.ts";
 
 const fixturePath = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "models-v1.json");
 const fixtureBody = readFileSync(fixturePath, "utf8");
+/** Distinct routable ids the fixture publishes, so a refresh can be compared to it. */
+const fixtureModelCount = new Set(
+	(JSON.parse(fixtureBody) as { data: Array<{ id?: string }> }).data.map((entry) => entry.id),
+).size;
 
 function makeConfig(modelTtlMinutes?: number) {
 	return createHofundConfig({
@@ -89,7 +93,7 @@ describe("refreshModels lifecycle", function () {
 		await provider.refreshModels(context);
 
 		expect(fetches).toBe(1);
-		expect(provider.getModels()).toHaveLength(6);
+		expect(provider.getModels()).toHaveLength(fixtureModelCount);
 		expect(publications.some((publication) => publication.persist !== undefined)).toBe(true);
 	});
 
@@ -134,7 +138,7 @@ describe("refreshModels lifecycle", function () {
 		await provider.refreshModels(context);
 
 		expect(fetches).toBe(0);
-		expect(provider.getModels()).toHaveLength(6);
+		expect(provider.getModels()).toHaveLength(fixtureModelCount);
 	});
 
 	it("retains the previous catalog and warns when a fetch fails", async function () {
@@ -157,7 +161,7 @@ describe("refreshModels lifecycle", function () {
 			makeContext({ stored: stored as unknown as RefreshModelsContext["stored"] }).context,
 		);
 
-		expect(provider.getModels()).toHaveLength(6);
+		expect(provider.getModels()).toHaveLength(fixtureModelCount);
 		expect(notices.join(" ")).toContain("boom");
 	});
 

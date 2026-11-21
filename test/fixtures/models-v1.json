@@ -1,136 +1,217 @@
 {
 	"data": [
 		{
-			"id": "openrouter/moonshotai/kimi-k3",
-			"canonical_slug": "moonshotai/kimi-k3-20260715",
-			"name": "Kimi K3",
-			"normalized_name": "Kimi K3",
-			"created": 1700000000,
-			"context_length": 1048576,
+			"id": "gemini/gemini-3.5-flash-lite",
+			"name": "Gemini 3.5 Flash Lite",
+			"normalized_name": "Gemini 3.5 Flash Lite",
+			"context_length": 1114112,
 			"max_input_tokens": 1048576,
-			"max_output_tokens": 943718,
-			"architecture": {
-				"input_modalities": ["text", "image"],
-				"output_modalities": ["text"]
-			},
+			"max_output_tokens": 65536,
 			"pricing": {
-				"prompt": "0.000003",
-				"completion": "0.000015",
-				"input_cache_read": "0.0000003",
-				"input_cache_write": "0.00000375"
+				"prompt": "0.0000003000",
+				"completion": "0.0000025000",
+				"web_search": "0.0140000000",
+				"input_cache_read": "0.0000000300"
 			},
-			"top_provider": {
-				"context_length": 1048576,
-				"max_completion_tokens": 943718
+			"description": "Gemini 3.5 Flash Lite",
+			"supported_methods": [
+				"generateContent",
+				"countTokens",
+				"createCachedContent",
+				"batchGenerateContent"
+			]
+		},
+		{
+			"id": "gemini/gemini-3.8-flash",
+			"name": "Gemini 3.8 Flash",
+			"normalized_name": "Gemini 3.8 Flash",
+			"context_length": 1114112,
+			"max_input_tokens": 1048576,
+			"max_output_tokens": 65536,
+			"pricing": {
+				"prompt": "0.0000007500",
+				"completion": "0.0000037500",
+				"web_search": "0.0140000000",
+				"input_cache_read": "0.0000000750"
 			},
-			"supported_parameters": [
-				"tools",
-				"reasoning",
-				"developer",
-				"stream_options",
-				"structured_outputs",
-				"max_completion_tokens"
-			],
-			"default_parameters": { "temperature": 1 },
-			"reasoning": {
-				"mandatory": false,
-				"default_enabled": true,
-				"supported_efforts": ["low", "medium", "high"],
-				"default_effort": "high"
-			},
-			"description": "Moonshot Kimi K3 (reasoning, vision) via OpenRouter."
+			"description": "Gemini 3.8 Flash",
+			"supported_methods": [
+				"generateContent",
+				"countTokens",
+				"createCachedContent",
+				"batchGenerateContent"
+			]
 		},
 		{
 			"id": "opencode-go/deepseek-v4.1-flash",
-			"canonical_slug": "opencode-go/deepseek-v4.1-flash",
-			"name": "opencode-go/deepseek-v4.1-flash",
-			"normalized_name": "opencode-go/deepseek-v4.1-flash",
-			"created": 1700000001,
-			"context_length": 1048576,
-			"max_input_tokens": 1048576,
+			"normalized_name": "Deepseek V4.1 Flash",
+			"created": 1795232732,
+			"context_length": 1000000,
+			"max_input_tokens": 1000000,
 			"max_output_tokens": 384000,
-			"architecture": {
-				"input_modalities": ["text"],
-				"output_modalities": ["text"]
+			"pricing": {
+				"prompt": "0.0000001500",
+				"completion": "0.0000006000",
+				"input_cache_read": "0.0000000060"
 			},
-			"pricing": { "prompt": "0", "completion": "0" },
-			"top_provider": {
-				"context_length": 1048576,
-				"max_completion_tokens": 384000
-			},
-			"supported_parameters": ["tools", "reasoning", "max_completion_tokens"],
-			"reasoning": {
-				"mandatory": true,
-				"default_enabled": true,
-				"supported_efforts": ["low", "high", "max"]
-			},
-			"description": "DeepSeek V4.1 Flash with mandatory reasoning."
+			"owned_by": "opencode"
 		},
 		{
 			"id": "opencode-go/glm-5.3-flash",
-			"created": 1700000005,
+			"normalized_name": "Glm 5.3 Flash",
+			"created": 1795232732,
+			"context_length": 1000000,
+			"max_input_tokens": 1000000,
+			"max_output_tokens": 131072,
+			"pricing": {
+				"prompt": "0.0000001500",
+				"completion": "0.0000005000",
+				"input_cache_read": "0.0000000300"
+			},
+			"owned_by": "opencode"
+		},
+		{
+			"id": "opencode-go/kimi-k2.7-code",
+			"normalized_name": "Kimi K2.7 Code",
+			"created": 1795232732,
+			"context_length": 262144,
+			"max_input_tokens": 262144,
+			"max_output_tokens": 262144,
+			"pricing": {
+				"prompt": "0.0000009500",
+				"completion": "0.0000040000",
+				"input_cache_read": "0.0000001900"
+			},
 			"owned_by": "opencode"
 		},
 		{
 			"id": "opencode-go/kimi-k3",
-			"created": 1700000006,
+			"normalized_name": "Kimi K3",
+			"created": 1795232732,
+			"context_length": 1048576,
+			"max_input_tokens": 1048576,
+			"max_output_tokens": 131072,
+			"pricing": {
+				"prompt": "0.0000030000",
+				"completion": "0.0000150000",
+				"input_cache_read": "0.0000003000",
+				"input_cache_write": "0.0000030000"
+			},
 			"owned_by": "opencode"
 		},
 		{
-			"id": "gemini/gemini-3.5-flash-lite",
-			"canonical_slug": "gemini/gemini-3.5-flash-lite",
-			"name": "Gemini 3.5 Flash Lite",
-			"normalized_name": "Gemini 3.5 Flash Lite",
-			"created": 1700000002,
-			"context_length": 1114112,
+			"id": "openrouter/deepseek/deepseek-v4.1-flash",
+			"name": "Deepseek/Deepseek V4.1 Flash",
+			"normalized_name": "Deepseek V4.1 Flash",
+			"context_length": 1048576,
 			"max_input_tokens": 1048576,
-			"max_output_tokens": 65536,
-			"architecture": {
-				"input_modalities": ["text"],
-				"output_modalities": ["text"]
-			},
+			"max_output_tokens": 393216,
 			"pricing": {
-				"prompt": "0.0000003",
-				"completion": "0.0000025",
-				"input_cache_read": "0.00000003",
-				"input_cache_write": "0.0000003"
-			},
-			"top_provider": {
-				"context_length": 1114112,
-				"max_completion_tokens": 65536
-			},
-			"supported_parameters": ["tools", "max_completion_tokens", "response_format"],
-			"description": "Gemini 3.5 Flash Lite (non-reasoning)."
+				"prompt": "0.0000000507",
+				"completion": "0.0000002028",
+				"input_cache_read": "0.0000000010"
+			}
 		},
 		{
-			"id": "rutledge/rutledge-coder",
-			"name": "rutledge/rutledge-coder",
-			"normalized_name": "rutledge/rutledge-coder",
-			"alias": "nightmedia/Qwen3-Coder-Next-mxfp4-mlx",
-			"created": 0,
-			"owned_by": "maestro",
-			"architecture": {
-				"input_modalities": ["text"],
-				"output_modalities": ["text"]
-			},
-			"pricing": { "prompt": 0.0000005, "completion": 0.000002 },
-			"supported_parameters": [],
-			"description": "Custom coder with numeric pricing, no limits, and no upstream echo."
+			"id": "openrouter/minimax/minimax-m3",
+			"name": "Minimax/Minimax M3",
+			"normalized_name": "Minimax M3",
+			"context_length": 524288,
+			"max_input_tokens": 524288,
+			"max_output_tokens": 512000,
+			"pricing": {
+				"prompt": "0.0000003000",
+				"completion": "0.0000012000",
+				"input_cache_read": "0.0000000600"
+			}
+		},
+		{
+			"id": "openrouter/moonshotai/kimi-k2.6",
+			"name": "Moonshotai/Kimi K2.6",
+			"normalized_name": "Kimi K2.6",
+			"context_length": 262144,
+			"max_input_tokens": 262144,
+			"max_output_tokens": 262144,
+			"pricing": {
+				"prompt": "0.0000006000",
+				"completion": "0.0000030000",
+				"input_cache_read": "0.0000001000"
+			}
+		},
+		{
+			"id": "openrouter/moonshotai/kimi-k2.7-code",
+			"name": "Moonshotai/Kimi K2.7 Code",
+			"normalized_name": "Kimi K2.7 Code",
+			"context_length": 262144,
+			"max_input_tokens": 262144,
+			"max_output_tokens": 235929,
+			"pricing": {
+				"prompt": "0.0000006000",
+				"completion": "0.0000030000",
+				"input_cache_read": "0.0000001200"
+			}
 		},
 		{
 			"id": "openrouter/moonshotai/kimi-k3",
-			"canonical_slug": "moonshotai/kimi-k3-20260715",
-			"name": "Kimi K3 (duplicate spelling)",
-			"normalized_name": "Kimi K3 Duplicate",
+			"name": "Moonshotai/Kimi K3",
+			"normalized_name": "Kimi K3",
 			"context_length": 1048576,
+			"max_input_tokens": 1048576,
 			"max_output_tokens": 943718,
-			"architecture": {
-				"input_modalities": ["text"],
-				"output_modalities": ["text"]
-			},
-			"pricing": { "prompt": "9", "completion": "9" },
-			"supported_parameters": ["tools"],
-			"description": "Repeat of a routable id used to prove first-wins dedupe."
+			"pricing": {
+				"prompt": "0.0000001920",
+				"completion": "0.0000160000",
+				"input_cache_read": "0.0000001820"
+			}
+		},
+		{
+			"id": "openrouter/z-ai/glm-5.3-flash",
+			"name": "Z Ai/Glm 5.3 Flash",
+			"normalized_name": "Glm 5.3 Flash",
+			"context_length": 1048576,
+			"max_input_tokens": 1048576,
+			"max_output_tokens": 131072,
+			"pricing": {
+				"prompt": "0.0000000399",
+				"completion": "0.0000000784",
+				"input_cache_read": "0.0000000300"
+			}
+		},
+		{
+			"id": "rutledge/rutledge-coder",
+			"alias": "nightmedia/Qwen3-Coder-Next-mxfp4-mlx",
+			"created": 0,
+			"owned_by": "maestro"
+		},
+		{
+			"id": "rutledge/rutledge-default",
+			"alias": "TheCluster/Qwen3.6-35B-A3B-Heretic-MLX-mixed-6.4bit",
+			"created": 0,
+			"owned_by": "maestro"
+		}
+	],
+	"extra_fields": {
+		"request_type": "list_models",
+		"routing_info": {},
+		"latency": 582,
+		"chunk_index": 0
+	},
+	"key_statuses": [
+		{
+			"status": "success",
+			"provider": "rutledge"
+		},
+		{
+			"status": "success",
+			"provider": "opencode-go"
+		},
+		{
+			"status": "success",
+			"provider": "gemini"
+		},
+		{
+			"status": "success",
+			"provider": "openrouter"
 		}
 	]
 }

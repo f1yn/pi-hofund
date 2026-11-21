@@ -2,18 +2,72 @@
 	"data": [
 		{
 			"id": "opencode-go/deepseek-v4.1-flash",
-			"created": 1794100890,
+			"normalized_name": "Deepseek V4.1 Flash",
+			"created": 1795232733,
+			"context_length": 1000000,
+			"max_input_tokens": 1000000,
+			"max_output_tokens": 384000,
+			"pricing": {
+				"prompt": "0.0000001500",
+				"completion": "0.0000006000",
+				"input_cache_read": "0.0000000060"
+			},
 			"owned_by": "opencode"
 		},
 		{
 			"id": "opencode-go/glm-5.3-flash",
-			"created": 1794100890,
+			"normalized_name": "Glm 5.3 Flash",
+			"created": 1795232733,
+			"context_length": 1000000,
+			"max_input_tokens": 1000000,
+			"max_output_tokens": 131072,
+			"pricing": {
+				"prompt": "0.0000001500",
+				"completion": "0.0000005000",
+				"input_cache_read": "0.0000000300"
+			},
+			"owned_by": "opencode"
+		},
+		{
+			"id": "opencode-go/kimi-k2.7-code",
+			"normalized_name": "Kimi K2.7 Code",
+			"created": 1795232733,
+			"context_length": 262144,
+			"max_input_tokens": 262144,
+			"max_output_tokens": 262144,
+			"pricing": {
+				"prompt": "0.0000009500",
+				"completion": "0.0000040000",
+				"input_cache_read": "0.0000001900"
+			},
+			"owned_by": "opencode"
+		},
+		{
+			"id": "opencode-go/kimi-k3",
+			"normalized_name": "Kimi K3",
+			"created": 1795232733,
+			"context_length": 1048576,
+			"max_input_tokens": 1048576,
+			"max_output_tokens": 131072,
+			"pricing": {
+				"prompt": "0.0000030000",
+				"completion": "0.0000150000",
+				"input_cache_read": "0.0000003000",
+				"input_cache_write": "0.0000030000"
+			},
 			"owned_by": "opencode"
 		}
 	],
 	"extra_fields": {
 		"request_type": "list_models",
-		"routing_info": { "provider": "opencode-go", "requested_provider": "opencode-go" },
+		"routing_info": {
+			"provider": "opencode-go",
+			"requested_provider": "opencode-go"
+		},
+		"provider": "opencode-go",
+		"latency": 54,
+		"upstream_latency": 54,
+		"chunk_index": 0,
 		"raw_response": [
 			{
 				"object": "list",
@@ -21,100 +75,538 @@
 					{
 						"id": "deepseek-v4.1-flash",
 						"object": "model",
+						"created": 1795232733,
 						"owned_by": "opencode",
-						"name": "DeepSeek V4.1 Flash",
-						"canonical_id": "deepseek/deepseek-v4.1-flash",
+						"name": "DeepSeek V4.1 Flash 1017",
+						"canonical_id": "deepseek/deepseek-v4.1-flash-1017",
 						"type": "chat",
+						"description": "October 17 update of DeepSeek V4.1 Flash with improved reasoning, coding, agentic tasks, and visual understanding",
+						"family": "deepseek-flash",
+						"open_weights": true,
+						"knowledge": "2025-05",
+						"release_date": "2026-10-17",
+						"last_updated": "2026-10-17",
 						"modalities": {
-							"input": ["text", "image/jpeg", "image/png"],
+							"input": ["text", "image/jpeg", "image/png", "image/gif", "image/webp"],
 							"output": ["text"]
 						},
 						"capabilities": {
-							"tools": { "supported": true },
-							"reasoning": { "supported": true, "effort": ["low", "high", "max"] },
+							"tools": {
+								"supported": true
+							},
+							"reasoning": {
+								"supported": true,
+								"effort": ["low", "high", "max"]
+							},
 							"structured_output": true,
-							"temperature": true
+							"temperature": true,
+							"top_p": true,
+							"top_k": true,
+							"system_updates": true,
+							"effort_updates": false
 						},
-						"limit": { "context": 1000000, "output": 384000 },
+						"limit": {
+							"context": 1000000,
+							"output": 384000
+						},
 						"cost": {
 							"text": {
-								"input": { "price": 0.15, "cache": { "read": 0.003 } },
-								"output": { "price": 0.6 }
+								"input": {
+									"price": 0.15,
+									"cache": {
+										"read": 0.003
+									}
+								},
+								"output": {
+									"price": 0.6
+								}
+							},
+							"multipliers": [
+								{
+									"when": {
+										"utc_days": {
+											"in": ["mon", "tue", "wed", "thu", "fri"]
+										},
+										"any": [
+											{
+												"all": [
+													{
+														"utc_hours": {
+															"gte": "01:00"
+														}
+													},
+													{
+														"utc_hours": {
+															"lt": "04:00"
+														}
+													}
+												]
+											},
+											{
+												"all": [
+													{
+														"utc_hours": {
+															"gte": "06:00"
+														}
+													},
+													{
+														"utc_hours": {
+															"lt": "10:00"
+														}
+													}
+												]
+											}
+										]
+									},
+									"factor": 2
+								}
+							]
+						},
+						"api": {
+							"chat-completions": {
+								"base_url": "https://opencode.ai/inference/go/openai/v1",
+								"sdk": {
+									"aisdk": "@ai-sdk/openai-compatible",
+									"opencodeai": "@opencode/ai/providers/openai-compatible"
+								},
+								"compatibility": {
+									"reasoning_field": "reasoning_content"
+								},
+								"capabilities": {
+									"tools": {
+										"choice": ["auto", "none", "required", "tool"],
+										"updates": []
+									}
+								}
 							}
+						},
+						"recommended_api": "chat-completions",
+						"go": {
+							"monthly_usage": {
+								"go": 100,
+								"go-plus": 200,
+								"go-teams": 105
+							},
+							"training": false,
+							"zdr": true,
+							"limited_regions": false,
+							"featured": true
 						}
 					},
 					{
 						"id": "glm-5.3-flash",
 						"object": "model",
+						"created": 1795232733,
 						"owned_by": "opencode",
 						"name": "GLM-5.3-Flash",
 						"canonical_id": "zhipuai/glm-5.3-flash",
 						"type": "chat",
+						"description": "Native multimodal GLM model for efficient coding and long-horizon agent tasks",
+						"family": "glm-flash",
+						"open_weights": true,
+						"release_date": "2026-08-26",
+						"last_updated": "2026-08-26",
 						"modalities": {
-							"input": ["text", "video/mp4"],
+							"input": [
+								"text",
+								"image/jpeg",
+								"image/png",
+								"video/mp4",
+								"video/x-matroska",
+								"video/quicktime"
+							],
 							"output": ["text"]
 						},
 						"capabilities": {
-							"tools": { "supported": true },
-							"reasoning": { "supported": true, "effort": ["low", "high", "max"] },
+							"tools": {
+								"supported": true
+							},
+							"reasoning": {
+								"supported": true,
+								"effort": ["low", "high", "max"]
+							},
 							"structured_output": true,
-							"temperature": true
+							"temperature": true,
+							"top_p": true,
+							"top_k": true,
+							"system_updates": true,
+							"effort_updates": false
 						},
-						"limit": { "context": 1000000, "output": 131072 },
+						"limit": {
+							"context": 1000000,
+							"output": 131072
+						},
 						"cost": {
 							"text": {
-								"input": { "price": 0.15, "cache": { "read": 0.03 } },
-								"output": { "price": 0.5 }
+								"input": {
+									"price": 0.15,
+									"cache": {
+										"read": 0.03
+									}
+								},
+								"output": {
+									"price": 0.5
+								}
 							}
-						}
-					},
-					{
-						"id": "kimi-k3",
-						"object": "model",
-						"owned_by": "opencode",
-						"name": "Kimi K3",
-						"canonical_id": "moonshotai/kimi-k3",
-						"type": "chat",
-						"modalities": {
-							"input": ["text", "image/jpeg", "image/heic", "video/mp4"],
-							"output": ["text"]
 						},
-						"capabilities": {
-							"tools": { "supported": true },
-							"reasoning": { "supported": true, "effort": ["max"] },
-							"structured_output": true
-						},
-						"limit": { "context": 1048576, "output": 131072 },
-						"cost": {
-							"text": {
-								"input": { "price": 3, "cache": { "read": 0.3, "write": 3 } },
-								"output": { "price": 15 }
+						"api": {
+							"chat-completions": {
+								"base_url": "https://opencode.ai/inference/go/openai/v1",
+								"sdk": {
+									"aisdk": "@ai-sdk/openai-compatible",
+									"opencodeai": "@opencode/ai/providers/openai-compatible"
+								},
+								"compatibility": {
+									"reasoning_field": "reasoning_content"
+								},
+								"capabilities": {
+									"tools": {
+										"choice": ["auto"],
+										"updates": []
+									}
+								}
 							}
+						},
+						"recommended_api": "chat-completions",
+						"go": {
+							"monthly_usage": {
+								"go": 60,
+								"go-plus": 180,
+								"go-teams": 65
+							},
+							"training": false,
+							"zdr": true,
+							"limited_regions": false,
+							"featured": true
 						}
 					},
 					{
 						"id": "gpt-5.6-luna",
 						"object": "model",
+						"created": 1795232733,
 						"owned_by": "opencode",
 						"name": "GPT-5.6 Luna",
 						"canonical_id": "openai/gpt-5.6-luna",
 						"type": "chat",
-						"capabilities": {
-							"tools": { "supported": true },
-							"reasoning": { "supported": true, "effort": ["none", "low", "high"] },
-							"structured_output": true
+						"description": "Cost-efficient GPT-5.6 model for fast, high-volume workloads",
+						"family": "gpt-luna",
+						"open_weights": false,
+						"knowledge": "2026-02-16",
+						"release_date": "2026-07-09",
+						"last_updated": "2026-07-09",
+						"modalities": {
+							"input": [
+								"text",
+								"image/jpeg",
+								"image/png",
+								"image/gif",
+								"image/webp",
+								"application/pdf"
+							],
+							"output": ["text"]
 						},
-						"limit": { "context": 1050000, "input": 922000, "output": 128000 },
+						"capabilities": {
+							"tools": {
+								"supported": true
+							},
+							"reasoning": {
+								"supported": true,
+								"effort": ["none", "low", "medium", "high", "xhigh", "max"]
+							},
+							"structured_output": true,
+							"temperature": true,
+							"top_p": true,
+							"top_k": false,
+							"system_updates": true,
+							"effort_updates": true
+						},
+						"limit": {
+							"context": 1050000,
+							"input": 922000,
+							"output": 128000
+						},
 						"cost": {
 							"text": {
-								"input": { "price": 0.2, "cache": { "read": 0.02, "write": 0.25 } },
-								"output": { "price": 1.2 }
+								"input": {
+									"price": 0.2,
+									"cache": {
+										"read": 0.02,
+										"write": {
+											"30m": 0.25,
+											"12h": 0.5
+										}
+									},
+									"overrides": [
+										{
+											"when": {
+												"context": {
+													"gt": 272000
+												}
+											},
+											"price": 0.4,
+											"cache": {
+												"read": 0.04,
+												"write": {
+													"30m": 0.5,
+													"12h": 1
+												}
+											}
+										}
+									]
+								},
+								"output": {
+									"price": 1.2,
+									"overrides": [
+										{
+											"when": {
+												"context": {
+													"gt": 272000
+												}
+											},
+											"price": 1.8
+										}
+									]
+								}
 							}
+						},
+						"api": {
+							"responses": {
+								"base_url": "https://opencode.ai/inference/go/openai/v1",
+								"sdk": {
+									"aisdk": "@ai-sdk/openai",
+									"opencodeai": "@opencode/ai/providers/openai/responses"
+								},
+								"capabilities": {
+									"tools": {
+										"strict": true,
+										"choice": ["auto", "none", "required", "tool"],
+										"search": true,
+										"freeform": ["text", "lark", "regex"],
+										"updates": ["add", "remove", "replace"]
+									}
+								}
+							}
+						},
+						"recommended_api": "responses",
+						"go": {
+							"monthly_usage": {
+								"go": 15,
+								"go-plus": 60,
+								"go-teams": 20
+							},
+							"training": false,
+							"zdr": false,
+							"limited_regions": false,
+							"featured": false
+						}
+					},
+					{
+						"id": "kimi-k2.7-code",
+						"object": "model",
+						"created": 1795232733,
+						"owned_by": "opencode",
+						"name": "Kimi K2.7 Code",
+						"canonical_id": "moonshotai/kimi-k2.7-code",
+						"type": "chat",
+						"description": "Coding-focused Kimi model, stronger on long-horizon repo work with less overthinking",
+						"family": "kimi-code",
+						"open_weights": true,
+						"knowledge": "2025-01",
+						"release_date": "2026-06-12",
+						"last_updated": "2026-06-12",
+						"modalities": {
+							"input": [
+								"text",
+								"image/jpeg",
+								"image/png",
+								"image/gif",
+								"image/webp",
+								"image/bmp",
+								"image/heic",
+								"image/heif",
+								"video/mp4",
+								"video/mpeg",
+								"video/mov",
+								"video/avi",
+								"video/x-flv",
+								"video/mpg",
+								"video/webm",
+								"video/wmv",
+								"video/3gpp"
+							],
+							"output": ["text"]
+						},
+						"capabilities": {
+							"tools": {
+								"supported": true
+							},
+							"reasoning": {
+								"supported": true
+							},
+							"structured_output": true,
+							"temperature": false,
+							"top_p": false,
+							"top_k": false,
+							"system_updates": true,
+							"effort_updates": false
+						},
+						"limit": {
+							"context": 262144,
+							"output": 262144
+						},
+						"cost": {
+							"text": {
+								"input": {
+									"price": 0.95,
+									"cache": {
+										"read": 0.19
+									}
+								},
+								"output": {
+									"price": 4
+								}
+							}
+						},
+						"api": {
+							"chat-completions": {
+								"base_url": "https://opencode.ai/inference/go/openai/v1",
+								"sdk": {
+									"aisdk": "@ai-sdk/openai-compatible",
+									"opencodeai": "@opencode/ai/providers/openai-compatible"
+								},
+								"compatibility": {
+									"reasoning_field": "reasoning_content"
+								},
+								"capabilities": {
+									"tools": {
+										"strict": true,
+										"choice": ["auto", "none"],
+										"updates": []
+									}
+								}
+							}
+						},
+						"recommended_api": "chat-completions",
+						"go": {
+							"monthly_usage": {
+								"go": 60,
+								"go-plus": 180,
+								"go-teams": 65
+							},
+							"training": false,
+							"zdr": true,
+							"limited_regions": false,
+							"featured": false
+						}
+					},
+					{
+						"id": "kimi-k3",
+						"object": "model",
+						"created": 1795232733,
+						"owned_by": "opencode",
+						"name": "Kimi K3",
+						"canonical_id": "moonshotai/kimi-k3",
+						"type": "chat",
+						"description": "Multimodal Kimi model with 1M context and toggleable max-effort thinking for long-horizon agent work",
+						"family": "kimi",
+						"open_weights": true,
+						"release_date": "2026-07-16",
+						"last_updated": "2026-07-16",
+						"modalities": {
+							"input": [
+								"text",
+								"image/jpeg",
+								"image/png",
+								"image/gif",
+								"image/webp",
+								"image/bmp",
+								"image/heic",
+								"image/heif",
+								"video/mp4",
+								"video/mpeg",
+								"video/mov",
+								"video/avi",
+								"video/x-flv",
+								"video/mpg",
+								"video/webm",
+								"video/wmv",
+								"video/3gpp"
+							],
+							"output": ["text"]
+						},
+						"capabilities": {
+							"tools": {
+								"supported": true
+							},
+							"reasoning": {
+								"supported": true,
+								"effort": ["max"]
+							},
+							"structured_output": true,
+							"temperature": false,
+							"top_p": false,
+							"top_k": false,
+							"system_updates": true,
+							"effort_updates": false
+						},
+						"limit": {
+							"context": 1048576,
+							"output": 1048576
+						},
+						"cost": {
+							"text": {
+								"input": {
+									"price": 3,
+									"cache": {
+										"read": 0.3,
+										"write": 3
+									}
+								},
+								"output": {
+									"price": 15
+								}
+							}
+						},
+						"api": {
+							"chat-completions": {
+								"base_url": "https://opencode.ai/inference/go/openai/v1",
+								"sdk": {
+									"aisdk": "@ai-sdk/openai-compatible",
+									"opencodeai": "@opencode/ai/providers/openai-compatible"
+								},
+								"compatibility": {
+									"reasoning_field": "reasoning_content"
+								},
+								"capabilities": {
+									"tools": {
+										"strict": true,
+										"choice": ["auto", "none", "required"],
+										"updates": ["add"]
+									}
+								}
+							}
+						},
+						"recommended_api": "chat-completions",
+						"go": {
+							"monthly_usage": {
+								"go": 15,
+								"go-plus": 60,
+								"go-teams": 20
+							},
+							"training": false,
+							"zdr": true,
+							"limited_regions": false,
+							"featured": false
 						}
 					}
 				]
 			}
 		]
 	},
-	"key_statuses": [{ "status": "success", "provider": "opencode-go" }]
+	"key_statuses": [
+		{
+			"status": "success",
+			"provider": "opencode-go"
+		}
+	]
 }
